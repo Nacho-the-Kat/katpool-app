@@ -36,10 +36,11 @@ jobs:
         run: |
           docker buildx build \
             --output "type=image,push=false" \
-            --platform linux/amd64,linux/arm/v7 \
-            --cache-from=type=registry,ref=${{ env.REPOSITORY_NAME }} \
-            --cache-to=type=registry,ref=${{ env.REPOSITORY_NAME }} \
-            --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+            --platform linux/amd64,linux/arm64 \
+            --cache-from=type=local,src=${{ env.REPOSITORY_NAME }} \
+            --cache-to=type=local,dest=$${{ env.REPOSITORY_NAME }},mode=max \
+            --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} \
+            --file ./Dockerfile 
                    
       - name: Docker Push
         env:
