@@ -35,8 +35,6 @@ jobs:
           IMAGE_NAME: ${{ env.REPOSITORY_NAME }}:beta-v1.0.2-${{ env.branch_name }}
         run: |
           docker buildx build \
-            --output "type=image,push=false" \
-            --platform linux/amd64,linux/arm64 \
             --cache-from=type=local,src=${{ env.REPOSITORY_NAME }} \
             --cache-to=type=local,dest=$${{ env.REPOSITORY_NAME }},mode=max \
             --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} \
