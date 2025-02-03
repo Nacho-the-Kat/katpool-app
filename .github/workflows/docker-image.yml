@@ -40,7 +40,8 @@ jobs:
             --cache-from=type=local,src=${{ env.REPOSITORY_NAME }} \
             --cache-to=type=local,dest=$${{ env.REPOSITORY_NAME }},mode=max \
             --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} \
-            --file ./Dockerfile 
+            --file ./Dockerfile \
+            .
                    
       - name: Docker Push
         env:
