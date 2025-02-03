@@ -15,7 +15,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
       - name: get epository name
         run: |
@@ -34,13 +34,10 @@ jobs:
         env:
           IMAGE_NAME: ${{ env.REPOSITORY_NAME }}:beta-v1.0.2-${{ env.branch_name }}
         run: docker buildx build \
-            --cache-from "type=local,src=/tmp/.buildx-cache" \
-            --cache-to "type=local,dest=/tmp/.buildx-cache" \
-            --platform linux/arm64,linux/amd64 \
-            --output "type=image,push=true" \
+            --cache-from=type=gha \
+            --cache-to=type=gha,mode=max \
             --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} \
-            --file ./Dockerfile ./
-
+            --file ./Dockerfile .
 
       - name: Docker Push
         env:
