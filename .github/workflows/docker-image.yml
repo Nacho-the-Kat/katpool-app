@@ -39,6 +39,17 @@ jobs:
             --tag ${{ env.IMAGE_NAME }} \
             --file ./Dockerfile \
             .
+      
+        - name: Cache Cargo Build Outputs
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Docker Push
         env:
