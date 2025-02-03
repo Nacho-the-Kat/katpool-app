@@ -34,15 +34,12 @@ jobs:
         env:
           IMAGE_NAME: ${{ env.REPOSITORY_NAME }}:beta-v1.0.2-${{ env.branch_name }}
         run: |
-          # Define cache location
-          CACHE_REPO="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
-
-          # Build Docker image with caching
           docker buildx build \
-            --cache-from=${CACHE_REPO}:latest \
-            --cache-to=${CACHE_REPO}:new,mode=max \
-            --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} \
-            --file ./Dockerfile .
+            --output "type=image,push=false" \
+            --platform linux/amd64,linux/arm/v7 \
+            --cache-from=type=registry,ref=${{ env.REPOSITORY_NAME }} \
+            --cache-to=type=registry,ref=${{ env.REPOSITORY_NAME }} \
+            --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
                    
       - name: Docker Push
         env:
