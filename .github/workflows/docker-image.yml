@@ -33,7 +33,14 @@ jobs:
       - name: Docker Build
         env:
           IMAGE_NAME: ${{ env.REPOSITORY_NAME }}:beta-v1.0.2-${{ env.branch_name }}
-        run: docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} .
+        run: docker buildx build \
+            --cache-from "type=local,src=/tmp/.buildx-cache" \
+            --cache-to "type=local,dest=/tmp/.buildx-cache" \
+            --platform linux/arm64,linux/amd64 \
+            --output "type=image,push=true" \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} \
+            --file ./Dockerfile ./
+
 
       - name: Docker Push
         env:
