@@ -38,7 +38,7 @@ jobs:
             --cache-to "type=local,dest=/tmp/.buildx-cache" \
             --platform linux/arm64,linux/amd64 \
             --output "type=image,push=true" \
-            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} \
+            --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} \
             --file ./Dockerfile ./
 
 
