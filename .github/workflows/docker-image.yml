@@ -35,7 +35,7 @@ jobs:
           IMAGE_NAME: ${{ env.REPOSITORY_NAME }}:beta-v1.0.2-${{ env.branch_name }}
         run: |
           # Define cache location
-          CACHE_REPO="${{ env.REGISTRY }}/cache-repo"
+          CACHE_REPO="${{ env.REGISTRY }}/${{ env.REPOSITORY_NAME }}"
 
           # Build Docker image with caching
           docker buildx build \
