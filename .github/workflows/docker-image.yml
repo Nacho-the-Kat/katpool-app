@@ -30,22 +30,20 @@ jobs:
       - name: Docker Login
         run: echo "${{ secrets.GB_KATPOOL_TOKEN }}" | docker login ${{ env.REGISTRY }} --username argonmining --password-stdin
 
-      - name: Docker Build
+      - name: Docker Build with cargo build cache
         env:
           IMAGE_NAME: ${{ env.REPOSITORY_NAME }}:beta-v1.0.2-${{ env.branch_name }}
-        run: docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} .
-      
-        - name: Cache Cargo Build Outputs
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        run: |
+          # Define cache location
+          CACHE_REPO="${{ env.REGISTRY }}/cache-repo"
 
+          # Build Docker image with caching
+          docker buildx build \
+            --cache-from=${CACHE_REPO}:latest \
+            --cache-to=${CACHE_REPO}:new,mode=max \
+            --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} \
+            --file ./Dockerfile .
+                   
       - name: Docker Push
         env:
           IMAGE_NAME: ${{ env.REPOSITORY_NAME }}:beta-v1.0.2-${{ env.branch_name }}
