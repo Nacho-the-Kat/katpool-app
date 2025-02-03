@@ -36,8 +36,9 @@ jobs:
         run: docker buildx build \
             --cache-from=type=gha \
             --cache-to=type=gha,mode=max \
-            --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} \
-            --file ./Dockerfile .
+            --tag ${{ env.IMAGE_NAME }} \
+            --file ./Dockerfile \
+            .
 
       - name: Docker Push
         env:
