@@ -6,16 +6,9 @@ import { sompiToKaspaStringWithSuffix } from '../../wasm/kaspa';
 import { DEBUG } from "../../index"
 import { SharesManager } from '../stratum/sharesManager'; // Import SharesManager
 import { PushMetrics } from '../prometheus'; // Import the PushMetrics class
-import axios, { AxiosError } from 'axios';
-import config from "../../config/config.json";
-
-let KASPA_BASE_URL = 'https://api.kaspa.org';
-
-if( config.network === "testnet-10" ) {
- KASPA_BASE_URL = "https://api-tn10.kaspa.org"
-} else if( config.network === "testnet-11" ) {
- KASPA_BASE_URL = "https://api-tn11.kaspa.org"
-}
+import { fetchBlockHashAndDaaScore } from './fetchBlockDetails';
+import "./workerMain"; // Start the queue and worker system
+import { addTransactionToQueue } from './workerMain';
 
 export default class Pool {
   private treasury: Treasury;
@@ -113,7 +106,8 @@ export default class Pool {
 
     const scaledTotal = BigInt(totalWork * 100);
 
-    let {reward_block_hash, block_hash, daaScoreF} = await this.fetchBlockHashAndDaaScore(txnId)
+    let {reward_block_hash, block_hash, daaScoreF} = await fetchBlockHashAndDaaScore(txnId)
+    if (reward_block_hash == '' && daaScoreF == '0') addTransactionToQueue(txnId, minerReward, this.treasury.address)
     if (daaScoreF === '0') daaScoreF = daaScore
     
     const database = new Database(process.env.DATABASE_URL || '');
@@ -137,80 +131,5 @@ export default class Pool {
 
     // Handle pool fee revenue
     if (works.size > 0 && poolFee > 0) this.revenuize(poolFee);
-  }
-
-  handleError(error: unknown, context: string): void {
-    if (error instanceof AxiosError) {
-      this.monitoring.error(`API call failed: ${error.message}.`);
-      this.monitoring.error(`${context}`);
-      if (error.response) {
-        this.monitoring.error(`Response status: ${error.response.status}`);
-        if (DEBUG) this.monitoring.error(`Response data: ${JSON.stringify(error.response.data)}`);
-      }
-    } else {
-      this.monitoring.error(`Unexpected error: ${error}`);
-    }
-  } 
-
-  async fetchBlockHashAndDaaScore(txnId: string) {
-    let block_hash: string = 'block_hash_placeholder'
-    let daaScoreF = '0' // Needs to be removed later
-    let reward_block_hash = ''
-    // Fetch reward hash
-    try {
-      const response = await axios.get(`${KASPA_BASE_URL}/transactions/${txnId}?inputs=false&outputs=false&resolve_previous_outpoints=no`, {
-        timeout: 5000, // Timeout for safety
-      });
-      
-      if (response?.status !== 200 && !response?.data) {
-        this.monitoring.error(`Unexpected status code: ${response.status}`);
-        this.monitoring.error(`Invalid or missing block hash in response data for transaction ${txnId}`);
-      } else {
-        reward_block_hash = response.data.block_hash[0] // Reward block hash
-      }
-    } catch (error) {
-        this.handleError(error, `Fetching reward block hash for transaction ${txnId}`);
-    }
-
-    // Fetch actual block hash
-    try {
-      const response = await axios.get(`${KASPA_BASE_URL}/blocks/${reward_block_hash}?includeColor=false`, {
-        timeout: 5000, // Timeout for safety
-      });
-      
-      if (response?.status !== 200 && !response?.data) {
-        this.monitoring.error(`Unexpected status code: ${response.status}`);
-        this.monitoring.error(`Invalid or missing block hash in response data for transaction ${txnId}`);
-      } else {
-        let block_hashes = response.data.verboseData.mergeSetBluesHashes
-        for (const hash of block_hashes) {
-          
-          try {
-            const response = await axios.get(`${KASPA_BASE_URL}/blocks/${hash}?includeColor=false`, {
-              timeout: 5000, // Timeout for safety
-            });
-            
-            const targetPattern = /\/Katpool$/;
-            if (response?.status !== 200 && !response?.data) {
-              this.monitoring.error(`Unexpected status code: ${response.status}`);
-              this.monitoring.error(`Invalid or missing block hash in response data for transaction ${txnId}`);
-            } else if (response?.status === 200 && response?.data && targetPattern.test(response.data.extra.minerInfo)) {              
-              // Fetch details for the block hash where miner info matches
-              block_hash = hash
-              daaScoreF = response.data.header.daaScore
-              break    
-            } else {
-              this.monitoring.error(`Error Fetching block hash for transaction ${txnId}`)
-            }
-          } catch (error) {
-              this.handleError(error, `Fetching block hash for transaction ${txnId}`);
-          }      
-        }
-      }
-    } catch (error) {
-        this.handleError(error, `Fetching block hash for transaction ${txnId}`);
-    }
-
-    return { reward_block_hash, block_hash, daaScoreF }
   }
 }
