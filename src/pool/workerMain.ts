@@ -22,6 +22,7 @@ const processQueue = () => {
     worker.on("message", (message) => {
       if (message.success) {
         if (DEBUG) monitoring.debug(`✅ Worker completed for txnId: ${txnId}`);
+        txnQueue.remove(txnId);
       } else {
         monitoring.error(`❌ Worker failed for txnId: ${txnId}, retrying...`);
         const retryAllowed = txnQueue.incrementRetry(txnId);
