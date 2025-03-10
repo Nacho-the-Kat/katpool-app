@@ -38,8 +38,20 @@ export default class Server {
         open: this.onConnect.bind(this),
         data: this.onData.bind(this),
         error: (socket, error) => {
-          this.monitoring.error(`Opennig socket: ${error}`)
-        }
+          this.monitoring.error(`server: Opening socket - ${socket.remoteAddress ?? "unknown"} has error: ${JSON.stringify(error)}`)
+        },
+        close: (socket) => {
+          this.monitoring.log(`server: Connection closed - ${socket.remoteAddress ?? "unknown"}`);
+        }, // socket closed
+        connectError: (socket, error) => {
+          this.monitoring.error(`server: ConnectError - ${socket.remoteAddress ?? "unknown"} has error: ${JSON.stringify(error)}`);
+        },
+        drain: (socket) => {
+          this.monitoring.debug(`server: Socket drained - ${socket.remoteAddress ?? "unknown"}`);
+        },
+        timeout: (socket) => {
+					this.monitoring.debug(`server: Connection timed out - ${socket.remoteAddress ?? "unknown"}`);
+				},
       }
     })
   }
