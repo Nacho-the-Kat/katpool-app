@@ -80,17 +80,6 @@ export default class Stratum extends EventEmitter {
     });
     this.subscriptors.forEach((socket) => {
       if (socket.readyState === "closed") {
-
-        // for (const [ address ] of socket.data.workers) {
-        //   const miners = this.miners.get(address)!
-        //   miners.delete(socket)
-
-        //   if (miners.size === 0) {
-        //     this.miners.delete(address)
-        //   }
-        // }
-
-
         try {
           for (const [ address, worker] of socket.data.workers) {
             const miners = this.sharesManager.getMiners().get(address)!;        
