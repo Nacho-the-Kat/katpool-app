@@ -82,6 +82,7 @@ export default class Stratum extends EventEmitter {
       if (socket.readyState === "closed") {
         try {
           for (const [ address, worker] of socket.data.workers) {
+            this.monitoring.debug(`Stratum: Deleting socket ${socket.data.workers} because socket.readyState: ${socket.readyState}`);
             const miners = this.sharesManager.getMiners().get(address)!;        
             miners.sockets.delete(socket);
             miners.workerStats.delete(worker.name);
