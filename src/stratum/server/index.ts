@@ -10,6 +10,7 @@ import logger from '../../monitoring/datadog';
 export type Worker = {
   address: string;
   name: string;
+  canxiumAddr: string;
 };
 
 export type Miner = {
