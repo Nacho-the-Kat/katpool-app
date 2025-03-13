@@ -105,6 +105,24 @@ export default class Stratum extends EventEmitter {
     socket.write(JSON.stringify(event) + '\n');
   }
 
+  private processCanxiumAddress(address: string): string {
+    // Remove "0x" prefix if present
+    if (address.startsWith("0x")) {
+      address = address.slice(2);
+    } else if (address.toLowerCase().startsWith("canxiuminer:0x")) {
+      // If it has both prefixes, remove the "0x" part
+      const prefix = "canxiuminer:";
+      address = prefix + address.slice(prefix.length + 2);
+    }
+  
+    // Ensure the address has the "canxiuminer:" prefix
+    if (!address.toLowerCase().startsWith("canxiuminer:")) {
+      address = "canxiuminer:" + address;
+    }
+  
+    return address;
+  }
+  
   private async onMessage(socket: Socket<Miner>, request: Request) {
     const release = await this.minerDataLock.acquire();
     try {
@@ -138,11 +156,14 @@ export default class Stratum extends EventEmitter {
           break;
         }
         case 'mining.authorize': {
-          const [address, name] = request.params[0].split('.');
+          const [address, name, canxiumAddr] = request.params[0].split('.');
           if (!Address.validate(address)) throw Error('Invalid address');
           if (!name) throw Error('Worker name is not set.');
+          if (!canxiumAddr) this.monitoring.log(`Canxium address is not set.`);
 
-          const worker: Worker = { address, name: name };
+          const processedCanxiumAddress = this.processCanxiumAddress(canxiumAddr);
+
+          const worker: Worker = { address, name, canxiumAddr };
           if (socket.data.workers.has(worker.name)) throw Error('Worker with duplicate name');
           const sockets = this.sharesManager.getMiners().get(worker.address)?.sockets || new Set();
           socket.data.workers.set(worker.name, worker);
@@ -193,7 +214,7 @@ export default class Stratum extends EventEmitter {
           this.reflectDifficulty(socket, worker.name);
           varDiff.labels(worker.name).set(workerStats.minDiff);
           
-          if (DEBUG) this.monitoring.debug(`Stratum: Authorizing worker - Address: ${address}, Worker Name: ${name}`);
+          if (DEBUG) this.monitoring.debug(`Stratum: Authorizing worker - Address: ${address}, Worker Name: ${name}, Canxium address: ${processedCanxiumAddress}`);
 
           metrics.updateGaugeValue(activeMinerGuage, [name, address, socket.data.asicType], Math.floor(Date.now() / 1000));
           break;
