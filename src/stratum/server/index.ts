@@ -8,6 +8,7 @@ import type { SharesManager } from '../sharesManager'
 export type Worker = {
   address: string,
   name: string,
+  canxiumAddr: string
 }
 
 export type Miner = {
