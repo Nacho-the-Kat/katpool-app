@@ -19,6 +19,7 @@ export type Miner = {
   asicType: AsicType;
   cachedBytes: string;
   connectedAt: number;
+  _isClosing?: boolean;
 };
 
 type MessageCallback = (socket: Socket<Miner>, request: Request) => Promise<Response>;
@@ -50,7 +51,11 @@ export default class Server {
         open: this.onConnect.bind(this),
         data: this.onData.bind(this),
         error: (socket, error) => {
-          this.monitoring.error(`server ${this.port}: Opennig socket ${error}`);
+          try {
+            this.monitoring.error(`server ${this.port}: Opening socket ${error} ${socket.data?.workers}`);
+          } catch (err) {
+            this.monitoring.error(`server ${this.port}: Opening socket ${error}`);
+          };
         },
         close: socket => {
           const workers = Array.from(socket.data.workers.values());
@@ -81,6 +86,7 @@ export default class Server {
       encoding: Encoding.BigHeader,
       cachedBytes: '',
       asicType: AsicType.Unknown,
+      _isClosing: false,
       connectedAt: Date.now(),
     };
 
@@ -89,6 +95,10 @@ export default class Server {
 
   private onData(socket: Socket<Miner>, data: Buffer) {
     updateMinerActivity(this.port); // Any connection
+
+    if (socket.data._isClosing) {
+      return;
+    }
 
     socket.data.cachedBytes += data;
 
@@ -103,33 +113,53 @@ export default class Server {
             socket.write(JSON.stringify(response) + '\n');
           })
           .catch(error => {
-            let response: Response = {
+            const response: Response = {
               id: message.id,
               result: false,
               error: new StratumError('unknown').toDump(),
             };
 
-            if (error instanceof StratumError) {
-              response.error = error.toDump();
-              socket.write(JSON.stringify(response) + '\n');
-            } else if (error instanceof Error) {
-              response.error![1] = error.message;
-              this.monitoring.error(`server ${this.port}: Ending socket : ${error.message}`);
-              return socket.end(JSON.stringify(response));
-            } else throw error;
-          });
+          if (error instanceof StratumError) {
+            response.error = error.toDump()
+            socket.write(JSON.stringify(response) + '\n')
+          } else if (error instanceof Error) {
+            response.error![1] = error.message
+            try {
+              this.monitoring.error(`server ${this.port}: Ending socket: ${error.message} ${socket.data.workers}`);
+            } catch (err) {
+              this.monitoring.error(`server ${this.port}: Ending socket: ${error.message}`);
+            }
+
+            socket.data._isClosing = true;
+            socket.data.cachedBytes = '';
+            return socket.end(JSON.stringify(response));
+          } else throw error
+        })
       } else {
-        this.monitoring.error(`server ${this.port}: Ending socket`);
+        try {
+          this.monitoring.error(`server ${this.port}: Ending socket invalid message: ${socket.data.workers}`);
+        } catch (err) {
+          this.monitoring.error(`server ${this.port}: Ending socket invalid message`);
+        }
+
+        socket.data._isClosing = true;
+        socket.data.cachedBytes = '';
         socket.end();
+        return;
       }
     }
 
     socket.data.cachedBytes = messages[0];
 
     if (socket.data.cachedBytes.length > 512) {
-      this.monitoring.error(
-        `server ${this.port}: Ending socket as socket.data.cachedBytes.length > 512`
-      );
+      try {
+        this.monitoring.error(`server ${this.port}: Ending socket as socket.data.cachedBytes.length > 512 ${socket.data.workers}`);
+      } catch (err) {
+        this.monitoring.error(`server ${this.port}: Ending socket as socket.data.cachedBytes.length > 512`);
+      }
+
+      socket.data._isClosing = true;
+      socket.data.cachedBytes = '';
       socket.end();
     }
   }
