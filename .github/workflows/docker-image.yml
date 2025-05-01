@@ -37,13 +37,7 @@ jobs:
       - name: Docker Build with cargo build cache
         env:
           IMAGE_NAME: ${{ env.REPOSITORY_NAME }}:beta-v1.0.2-${{ env.branch_name }}
-        run: |
-          docker buildx build \
-            --cache-from=type=local,src=${{ env.REPOSITORY_NAME }} \
-            --cache-to=type=local,dest=$${{ env.REPOSITORY_NAME }},mode=max \
-            --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} \
-            --file ./Dockerfile \
-            .
+        run: docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} .
                    
       - name: Docker Push
         env:
