@@ -54,8 +54,6 @@ COPY rusty-kaspa /rusty-kaspa
 # Step 8: Change the working directory to `wasm`
 WORKDIR /rusty-kaspa
 
-RUN git checkout v0.16.0
-
 WORKDIR /rusty-kaspa/wasm
 # Step 9: Run the build-node script from the `wasm` directory
 RUN --mount=type=cache,target=/rusty-kaspa/target \
