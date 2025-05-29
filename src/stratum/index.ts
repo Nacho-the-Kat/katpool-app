@@ -15,6 +15,7 @@ import { metrics } from '../../index';
 import Denque from 'denque';
 import JsonBig from 'json-bigint';
 import config from '../../config/config.json';
+import Database from '../pool/database/index.ts';
 import logger from '../monitoring/datadog';
 import { getSocketLogData } from './utils.ts';
 
@@ -23,6 +24,8 @@ const bitMainRegex = new RegExp('.*(GodMiner).*', 'i');
 const MIN_DIFF = config.stratum[0].minDiff || 64;
 const MAX_DIFF = config.stratum[0].maxDiff || 131072;
 const DEFAULT_DIFF = config.stratum[0].difficulty || 2048;
+
+const db = new Database(process.env.DATABASE_URL || '');
 
 export default class Stratum extends EventEmitter {
   server: Server;
@@ -284,10 +287,16 @@ export default class Stratum extends EventEmitter {
             this.monitoring.log(`Stratum: Extracted user diff value: ${userDiff}`);
           }
 
-          if (!Address.validate(address))
-            throw Error(
-              `Invalid address, parsed address: ${address}, request: ${request.params[0]}`
-            );
+          if (!Address.validate(address)) {
+            // If address is invalid. It should be Uphold authenticated user. With valid uphold id registered with KatPool.
+            const user = await db.getUserDetails(address);
+            if (!user) {
+              // If identifier is not registered with KatPool throw error.
+              throw Error(
+                `Access denied: Uphold ID is not registered with KatPool. Parsed address: ${address}, request: ${request.params[0]}`
+              );
+            }
+          }
           if (!name) throw Error(`Worker name is not set. Request: ${request.params[0]}`);
 
           const worker: Worker = { address, name: name };
