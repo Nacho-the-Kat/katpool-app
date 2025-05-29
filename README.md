@@ -42,6 +42,12 @@ POSTGRES_HOSTNAME='katpool-db' # Configure the hostname.
 DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOSTNAME}:5432/${POSTGRES_DB}"
 MONITOR="http://katpool-monitor:9302" # Configure the monitor url.
 DEBUG=1
+TELEGRAM_BOT_TOKEN=''
+UPHOLD_CLIENT_ID=''
+UPHOLD_CLIENT_SECRET=''
+TOKEN_ENCRYPTION_KEY=''
+OAUTH_STATE=''
+JWT_SECRET=''
 ```
 For now, all the instances share the same env var. However, in the future, it's better to set the private key to the payment app. katpool-app instance won't need it.
 
