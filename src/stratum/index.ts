@@ -128,7 +128,6 @@ export default class Stratum extends EventEmitter {
     socket.write(JSON.stringify(event) + '\n');
   }
 
-
   // Function to check if a number is power of 2
   isPowerOf2(num: number): boolean {
     return (num & (num - 1)) === 0 && num > 0;
