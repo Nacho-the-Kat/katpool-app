@@ -261,6 +261,14 @@ services:
       driver: journald
       options:
         tag: "{{.Name}}"
+  
+  kaspa-hashrate-indexer:
+    image: kaspa-hashrate-indexer
+    container_name: kaspa-hashrate-indexer
+    networks:
+      - backend
+    ports:
+      - "3000:3000"
 
 networks:
   backend:
