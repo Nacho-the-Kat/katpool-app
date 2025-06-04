@@ -52,7 +52,7 @@ RUN cargo install wasm-pack
 RUN rustup target add wasm32-unknown-unknown
 
 # Step 7: Clone the rusty-kaspa repository
-COPY rusty-kaspa /rusty-kaspa
+RUN git clone https://github.com/kaspanet/rusty-kaspa /rusty-kaspa
 
 # Step 8: Change the working directory to `wasm`
 WORKDIR /rusty-kaspa
@@ -61,8 +61,7 @@ RUN git checkout v1.0.0
 
 WORKDIR /rusty-kaspa/wasm
 # Step 9: Run the build-node script from the `wasm` directory
-RUN --mount=type=cache,target=/rusty-kaspa/target \
-    ./build-node
+RUN --mount=type=cache,target=/rusty-kaspa/target \ ./build-node
 
 # Use the official Node.js image as the base image
 FROM node:20

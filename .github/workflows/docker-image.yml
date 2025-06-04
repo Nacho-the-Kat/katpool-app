@@ -14,12 +14,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Clone rusty-kaspa
-        run: |
-          git clone --depth=1 --branch v1.0.0 https://github.com/kaspanet/rusty-kaspa
-          cd rusty-kaspa
-          git checkout v1.0.0
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -39,7 +33,14 @@ jobs:
       - name: Docker Build with cargo build cache
         env:
           IMAGE_NAME: ${{ env.REPOSITORY_NAME }}:beta-v1.0.2-${{ env.branch_name }}
-        run: docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} .
+        run: |
+          docker buildx build \
+            --cache-from=type=gha \
+            --cache-to=type=gha,mode=max \
+            --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} \
+            --file Dockerfile \
+            --output=type=docker \
+            .
                    
       - name: Docker Push
         env:
