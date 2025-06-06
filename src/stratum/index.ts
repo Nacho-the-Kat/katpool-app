@@ -255,9 +255,11 @@ export default class Stratum extends EventEmitter {
 
           if (!Address.validate(address)) throw Error(`Invalid address, parsed address: ${address}, request: ${request.params[0]}`);
           if (!name) throw Error(`Worker name is not set. ${request.params[0]}`);
+          let processedCanxiumAddress = '';
           if (!canxiumAddr) this.monitoring.log(`Canxium address is not set.`);
-
-          const processedCanxiumAddress = this.processCanxiumAddress(canxiumAddr);
+          else {
+            processedCanxiumAddress = this.processCanxiumAddress(canxiumAddr);
+          }
 
           const worker: Worker = { address, name, canxiumAddr };
           if (socket.data.workers.has(worker.name)) throw Error(`Worker with duplicate name: ${name}`);
