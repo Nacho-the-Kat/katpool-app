@@ -319,9 +319,11 @@ export default class Stratum extends EventEmitter {
               `Invalid address, parsed address: ${address}, request: ${request.params[0]}`
             );
           if (!name) throw Error(`Worker name is not set. ${request.params[0]}`);
+          let processedCanxiumAddress = '';
           if (!canxiumAddr) this.monitoring.log(`Canxium address is not set.`);
-
-          const processedCanxiumAddress = this.processCanxiumAddress(canxiumAddr);
+          else {
+            processedCanxiumAddress = this.processCanxiumAddress(canxiumAddr);
+          }
 
           this.sharesManager.registerSocket(socket, address, name);
 
