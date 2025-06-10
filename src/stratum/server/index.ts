@@ -52,10 +52,12 @@ export default class Server {
         data: this.onData.bind(this),
         error: (socket, error) => {
           try {
-            this.monitoring.error(`server ${this.port}: Opening socket ${error} ${socket.data?.workers}`);
+            this.monitoring.error(
+              `server ${this.port}: Opening socket ${error} ${socket.data?.workers}`
+            );
           } catch (err) {
             this.monitoring.error(`server ${this.port}: Opening socket ${error}`);
-          };
+          }
         },
         close: socket => {
           const workers = Array.from(socket.data.workers.values());
@@ -119,25 +121,29 @@ export default class Server {
               error: new StratumError('unknown').toDump(),
             };
 
-          if (error instanceof StratumError) {
-            response.error = error.toDump()
-            socket.write(JSON.stringify(response) + '\n')
-          } else if (error instanceof Error) {
-            response.error![1] = error.message
-            try {
-              this.monitoring.error(`server ${this.port}: Ending socket: ${error.message} ${socket.data.workers}`);
-            } catch (err) {
-              this.monitoring.error(`server ${this.port}: Ending socket: ${error.message}`);
-            }
+            if (error instanceof StratumError) {
+              response.error = error.toDump();
+              socket.write(JSON.stringify(response) + '\n');
+            } else if (error instanceof Error) {
+              response.error![1] = error.message;
+              try {
+                this.monitoring.error(
+                  `server ${this.port}: Ending socket: ${error.message} ${socket.data.workers}`
+                );
+              } catch (err) {
+                this.monitoring.error(`server ${this.port}: Ending socket: ${error.message}`);
+              }
 
-            socket.data._isClosing = true;
-            socket.data.cachedBytes = '';
-            return socket.end(JSON.stringify(response));
-          } else throw error
-        })
+              socket.data._isClosing = true;
+              socket.data.cachedBytes = '';
+              return socket.end(JSON.stringify(response));
+            } else throw error;
+          });
       } else {
         try {
-          this.monitoring.error(`server ${this.port}: Ending socket invalid message: ${socket.data.workers}`);
+          this.monitoring.error(
+            `server ${this.port}: Ending socket invalid message: ${socket.data.workers}`
+          );
         } catch (err) {
           this.monitoring.error(`server ${this.port}: Ending socket invalid message`);
         }
@@ -153,9 +159,13 @@ export default class Server {
 
     if (socket.data.cachedBytes.length > 512) {
       try {
-        this.monitoring.error(`server ${this.port}: Ending socket as socket.data.cachedBytes.length > 512 ${socket.data.workers}`);
+        this.monitoring.error(
+          `server ${this.port}: Ending socket as socket.data.cachedBytes.length > 512 ${socket.data.workers}`
+        );
       } catch (err) {
-        this.monitoring.error(`server ${this.port}: Ending socket as socket.data.cachedBytes.length > 512`);
+        this.monitoring.error(
+          `server ${this.port}: Ending socket as socket.data.cachedBytes.length > 512`
+        );
       }
 
       socket.data._isClosing = true;
