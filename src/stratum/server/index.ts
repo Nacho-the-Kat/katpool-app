@@ -153,6 +153,7 @@ export default class Server {
                 error: error.message,
               });
               this.sharesManager.deleteSocket(socket);
+              return;
             } else throw error;
           });
       } else {
