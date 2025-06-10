@@ -141,6 +141,7 @@ export default class Server {
               socket.write(JSON.stringify(response));
               this.sharesManager.sleep(1 * 1000);
               this.sharesManager.deleteSocket(socket);
+              return;
             } else throw error;
           });
       } else {
