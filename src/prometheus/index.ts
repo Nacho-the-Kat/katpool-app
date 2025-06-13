@@ -3,6 +3,7 @@ import PQueue from 'p-queue';
 import Monitoring from '../monitoring';
 import express from 'express';
 import client from 'prom-client';
+import { PROMETHEUS_METRICS_SERVER } from '../..';
 
 const queue = new PQueue({ concurrency: 1 });
 const monitoring = new Monitoring();
@@ -85,8 +86,8 @@ export function startMetricsServer() {
     res.end(await newRegister.metrics());
   });
 
-  app.listen(9999, () => {
-    monitoring.log('Metrics server running at http://localhost:9999');
+  app.listen(PROMETHEUS_METRICS_SERVER, () => {
+    monitoring.log(`Metrics server running at http://localhost:${PROMETHEUS_METRICS_SERVER}`);
   });
 }
 
