@@ -17,6 +17,7 @@ export type Miner = {
   encoding: Encoding;
   asicType: AsicType;
   cachedBytes: string;
+  connectedAt?: number;
 };
 
 type MessageCallback = (socket: Socket<Miner>, request: Request) => Promise<Response>;
@@ -61,7 +62,7 @@ export default class Server {
               this.monitoring.debug(
                 `server ${this.port}: Worker ${worker.name} disconnected from ${socket.remoteAddress}`
               );
-              sharesManager.deleteSocket(socket);
+              this.sharesManager.deleteSocket(socket);
             }
           }
         },
@@ -77,6 +78,7 @@ export default class Server {
       encoding: Encoding.BigHeader,
       cachedBytes: '',
       asicType: AsicType.Unknown,
+      connectedAt: Date.now(),
     };
   }
 

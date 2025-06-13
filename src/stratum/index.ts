@@ -136,9 +136,11 @@ export default class Stratum extends EventEmitter {
             }
             if (check) {
               let varDiff = this.sharesManager.getClientVardiff(worker);
-              if (varDiff != socket.data.difficulty && varDiff != 0) {
-                this.monitoring.log(
-                  `Stratum ${this.port}: Updating VarDiff for ${worker.name} from ${socket.data.difficulty} to ${varDiff}`
+              // Store current difficulty before any updates
+              const currentDifficulty = socket.data.difficulty;
+              if (varDiff != currentDifficulty && varDiff != 0) {
+                this.monitoring.debug(
+                  `Stratum ${this.port}: Updating difficulty for worker ${worker.name} from ${currentDifficulty} to ${varDiff}`
                 );
                 this.sharesManager.updateSocketDifficulty(worker.address, worker.name, varDiff);
                 this.reflectDifficulty(socket, worker.name);
@@ -285,6 +287,8 @@ export default class Stratum extends EventEmitter {
               `Invalid address, parsed address: ${address}, request: ${request.params[0]}`
             );
           if (!name) throw Error(`Worker name is not set. ${request.params[0]}`);
+
+          this.sharesManager.registerSocket(socket, address, name);
 
           const worker: Worker = { address, name: name };
           if (socket.data.workers.has(worker.name))
