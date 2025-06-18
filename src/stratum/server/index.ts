@@ -4,6 +4,9 @@ import { Encoding } from '../templates/jobs/encoding'
 import Monitoring from '../../monitoring'
 import { AsicType } from '..'
 import type { SharesManager } from '../sharesManager'
+import { createNamespace, getNamespace } from 'cls-hooked'
+import { v4 as uuidv4 } from 'uuid'
+import datadogLogger from '../../monitoring/datadog'
 
 export type Worker = {
   address: string,
@@ -17,9 +20,13 @@ export type Miner = {
   encoding: Encoding
   asicType: AsicType 
   cachedBytes: string
+  traceId: string
 }
 
 type MessageCallback = (socket: Socket<Miner>, request: Request) => Promise<Response>
+
+const TRACE_NAMESPACE = 'trace-namespace'
+const traceNamespace = getNamespace(TRACE_NAMESPACE) || createNamespace(TRACE_NAMESPACE)
 
 export default class Server {
   socket: TCPSocketListener<Miner>
@@ -46,8 +53,10 @@ export default class Server {
           this.monitoring.error(`server ${this.port}: Opennig socket ${error}`)
         },
         close: (socket) => {
+          const traceId = socket.data.traceId;
           const workers = Array.from(socket.data.workers.values());
           if (workers.length === 0) {
+            datadogLogger.warn('traceId', { traceId });
             this.monitoring.debug(`server ${this.port}: Socket from ${socket.remoteAddress} disconnected before worker auth.`);
           } else {
             for (const worker of workers) {
@@ -61,14 +70,20 @@ export default class Server {
   }
 
   private onConnect (socket: Socket<Miner>) {
-    socket.data = {
-      extraNonce: "",
-      difficulty: this.difficulty,
-      workers: new Map(),
-      encoding: Encoding.BigHeader,
-      cachedBytes: "",
-      asicType: AsicType.Unknown,
-    }
+    const traceId = uuidv4();
+    traceNamespace.run(() => {
+      traceNamespace.set('traceId', traceId);
+      socket.data = {
+        extraNonce: "",
+        difficulty: this.difficulty,
+        workers: new Map(),
+        encoding: Encoding.BigHeader,
+        cachedBytes: "",
+        asicType: AsicType.Unknown,
+        traceId,
+      };
+      this.monitoring.log(`server ${this.port}: Socket connected from ${socket.remoteAddress} with traceId ${traceId}`);
+    });
   }
 
   private onData (socket: Socket<Miner>, data: Buffer) {
