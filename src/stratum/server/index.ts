@@ -54,9 +54,11 @@ export default class Server {
         },
         close: (socket) => {
           const traceId = socket.data.traceId;
+          datadogLogger.warn('close socket with context - traceId', { traceId });
+          datadogLogger.warn('close socket without context - traceId');
+
           const workers = Array.from(socket.data.workers.values());
           if (workers.length === 0) {
-            datadogLogger.warn('traceId', { traceId });
             this.monitoring.debug(`server ${this.port}: Socket from ${socket.remoteAddress} disconnected before worker auth.`);
           } else {
             for (const worker of workers) {
@@ -71,8 +73,10 @@ export default class Server {
 
   private onConnect (socket: Socket<Miner>) {
     const traceId = uuidv4();
+    
     traceNamespace.run(() => {
-      traceNamespace.set('traceId', traceId);
+      datadogLogger.warn('open socket with context - traceId', { traceId });
+      datadogLogger.warn('open socket without context - traceId');
       socket.data = {
         extraNonce: "",
         difficulty: this.difficulty,
@@ -87,6 +91,9 @@ export default class Server {
   }
 
   private onData (socket: Socket<Miner>, data: Buffer) {
+    datadogLogger.warn('onData with context - traceId', { traceId: socket.data.traceId });
+    datadogLogger.warn('onData without context - traceId');
+
     socket.data.cachedBytes += data
 
     const messages = socket.data.cachedBytes.split('\n')
