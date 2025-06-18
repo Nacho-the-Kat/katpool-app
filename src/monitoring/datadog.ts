@@ -11,6 +11,7 @@ interface LogContext {
 }
 
 const sendLog = async (level: string, message: string, context: LogContext = {}) => {
+    console.log('context', context);
     // Ensure traceId is present in context, fetch from cls-hooked if not
     if (!context.traceId) {
         const ns = getNamespace('trace-namespace');
