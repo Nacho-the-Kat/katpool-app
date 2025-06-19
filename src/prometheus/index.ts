@@ -3,6 +3,7 @@ import PQueue from 'p-queue';
 import Monitoring from '../monitoring';
 import express from 'express';
 import client from 'prom-client';
+import logger from '../monitoring/datadog';
 
 const queue = new PQueue({ concurrency: 1 });
 const monitoring = new Monitoring();
@@ -79,6 +80,23 @@ newRegister.registerMetric(jobsNotFound);
 newRegister.registerMetric(varDiff);
 
 export function startMetricsServer() {
+
+  logger.warn('startMetricsServer-start', { size: queue.size, date: new Date().toISOString() });
+
+  process.on('uncaughtException', (err) => {
+    logger.warn('startMetricsServer-exception', {
+      message: err.message,
+      stack: err.stack
+    });
+  });
+
+  process.on('unhandledRejection', (reason) => {
+    logger.warn('startMetricsServer-exception', {
+      reason: reason instanceof Error ? reason.message : reason,
+      stack: reason instanceof Error ? reason.stack : undefined,
+    });
+  });
+
   const app = express();
   app.get('/metrics', async (req, res) => {
     res.set('Content-Type', newRegister.contentType);
@@ -92,10 +110,12 @@ export function startMetricsServer() {
 
 export class PushMetrics {
   updateGaugeValue(gauge: client.Gauge, labels: string[], value: number) {
+    logger.warn('p-queue-size-updateGaugeValue', { size: queue.size });
     queue.add(() => gauge.labels(...labels).set(value));
   }
 
   updateGaugeInc(gauge: client.Gauge, labels: string[]) {
+    logger.warn('p-queue-size-updateGaugeInc', { size: queue.size });
     queue.add(() => gauge.labels(...labels).inc(1));
   }
 }
