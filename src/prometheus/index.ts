@@ -110,14 +110,14 @@ export function startMetricsServer() {
 
 export class PushMetrics {
   updateGaugeValue(gauge: client.Gauge, labels: string[], value: number) {
-    logger.warn('p-queue-size-updateGaugeValue', { size: queue.size });
+    logger.warn('new-p-queue-size-updateGaugeValue', { size: queue.size });
     for (let i = 0; i < 100; i++) {
       queue.add(() => gauge.labels(...labels).set(value));
     }
   }
 
   updateGaugeInc(gauge: client.Gauge, labels: string[]) {
-    logger.warn('p-queue-size-updateGaugeInc', { size: queue.size });
+    logger.warn('new-p-queue-size-updateGaugeInc', { size: queue.size });
     for (let i = 0; i < 100; i++) {
       queue.add(() => gauge.labels(...labels).inc(1));
     }
