@@ -211,6 +211,13 @@ export default class Templates {
           header: tHeader,
           transactions: tTransactions,
         };
+
+        logger.info('template-received', {
+          port: this.port,
+          address: this.address,
+          cacheSize: this.cacheSize,
+        });
+
         if ((template.header.blueWork as string).length % 2 !== 0) {
           template.header.blueWork = '0' + template.header.blueWork;
         }
