@@ -18,8 +18,10 @@ import path from 'path';
 import { stringifyHashrate } from './src/stratum/utils';
 import { WINDOW_SIZE } from './src/stratum/sharesManager';
 
+
 export const poolStartTime = Date.now();
 const monitoring = new Monitoring();
+monitoring.log(`INFO: config used - ${JSON.stringify(config, null, 2)}`);
 monitoring.log(`Main: Pool started at ${new Date(poolStartTime).toISOString()}`);
 
 async function shutdown() {
@@ -134,7 +136,6 @@ sendConfig();
 
 startMetricsServer();
 
-monitoring.log(`INFO: config used - ${JSON.stringify(config, null, 2)}`);
 const treasury = new Treasury(rpc, serverInfo.networkId, treasuryPrivateKey, config.treasury.fee);
 // Array to hold multiple pools
 export const stratums: Stratum[] = [];
