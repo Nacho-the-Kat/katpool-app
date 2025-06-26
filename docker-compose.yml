@@ -129,7 +129,7 @@ services:
         tag: '{{.Name}}'
 
   katpool-app:
-    image: ghcr.io/nacho-the-kat/katpool-app:beta-v1.0.2-main
+    image: ghcr.io/nacho-the-kat/katpool-app:beta-v1.0.2-feat-remove-this-branch-test-payments
     pull_policy: always
     container_name: katpool-app
     depends_on:
@@ -180,7 +180,7 @@ services:
         tag: '{{.Name}}'
 
   katpool-payment:
-    image: ghcr.io/nacho-the-kat/katpool-payment:beta-v1.0.2-main
+    image: ghcr.io/nacho-the-kat/katpool-payment:beta-v1.0.2-feat-remove-this-branch-test-payments
     pull_policy: always
     container_name: katpool-payment
     depends_on:
