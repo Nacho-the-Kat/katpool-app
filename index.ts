@@ -134,6 +134,7 @@ sendConfig();
 
 startMetricsServer();
 
+monitoring.log(`INFO: cofig used - ${config}`);
 const treasury = new Treasury(rpc, serverInfo.networkId, treasuryPrivateKey, config.treasury.fee);
 // Array to hold multiple pools
 export const stratums: Stratum[] = [];
