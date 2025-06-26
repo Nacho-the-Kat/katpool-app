@@ -3,7 +3,7 @@ import { calculateTarget } from '../../wasm/kaspa';
 import { type Miner, type Worker } from './server';
 import { stringifyHashrate, getAverageHashrateGHs } from './utils';
 import Monitoring from '../monitoring';
-import { DEBUG } from '../../index';
+import { calculatePoolHashrate, DEBUG } from '../../index';
 import {
   minerAddedShares,
   minerInvalidShares,
@@ -325,8 +325,12 @@ export class SharesManager {
 
       // Clean up stale sockets
       staleSockets.forEach(socket => {
-        socket.end();
+        this.deleteSocket(socket);
       });
+
+      if (staleSockets.length > 0) {
+        calculatePoolHashrate();
+      }
     }, GENERAL_INTERVAL);
 
     // Stats reporting (simplified - no inline cleanup)
@@ -343,10 +347,23 @@ export class SharesManager {
       this.miners.forEach((minerData, address) => {
         let rate = 0;
         minerData.workerStats.forEach((stats, workerName) => {
-          const workerRate = getAverageHashrateGHs(stats);
+          // Update active status metrics
+          let workerRate = 0;
+          const status = this.checkWorkerStatus(stats);
+          metrics.updateGaugeValue(
+            activeMinerGuage,
+            [workerName, address, stats.asicType, this.port.toString()],
+            status
+          );
+          if (status) {
+            workerRate = getAverageHashrateGHs(stats);
+          } else {
+            workerRate = 0;
+          }
           rate += workerRate;
 
-          // Update metrics
+          // Update hashrate - in metrics and workerStats
+          stats.hashrate = workerRate;
           metrics.updateGaugeValue(workerHashRateGauge, [workerName, address], workerRate);
 
           const rateStr = stringifyHashrate(workerRate);
@@ -356,13 +373,6 @@ export class SharesManager {
           lines.push(
             ` ${stats.workerName.padEnd(15)}| ${rateStr.padEnd(14)} | ${ratioStr.padEnd(14)} | ${stats.blocksFound.toString().padEnd(12)} | ${uptime}s`
           );
-
-          // Update worker's hashrate in workerStats
-          stats.hashrate = workerRate;
-
-          // Update active status
-          const status = this.checkWorkerStatus(stats);
-          metrics.updateGaugeValue(activeMinerGuage, [workerName, address, stats.asicType], status);
         });
         totalRate += rate;
       });
@@ -431,17 +441,23 @@ export class SharesManager {
           if (!stillConnected) {
             // No other sockets for this worker, clean up completely
             const workerStats = minerData.workerStats.get(workerName);
-            minerData.workerStats.delete(workerName);
+            // minerData.workerStats.delete(workerName);
 
             this.monitoring.debug(
               `SharesManager ${this.port}: Deleted worker stats for: ${workerName}@${address}`
             );
 
             // Update metrics
+            metrics.updateGaugeValue(workerHashRateGauge, [workerName, address], 0);
             if (workerStats) {
+              this.monitoring.debug(
+                `SharesManager ${this.port}: Resetting hashrate for worker: ${workerName}`
+              );
+              workerStats.hashrate = 0;
+              // Here we need to use port from socket mostly.
               metrics.updateGaugeValue(
                 activeMinerGuage,
-                [workerName, address, workerStats.asicType],
+                [workerName, address, workerStats.asicType, socket.data.port.toString()],
                 0
               );
             }
@@ -801,7 +817,7 @@ export class SharesManager {
       stats.varDiffStartTime = zeroDateMillS;
       stats.varDiffWindow = 0;
       stats.minDiff = newMinDiff;
-      varDiff.labels(stats.workerName).set(stats.minDiff);
+      metrics.updateGaugeValue(varDiff, [stats.workerName, this.port.toString()], stats.minDiff);
     }
     return previousMinDiff;
   }

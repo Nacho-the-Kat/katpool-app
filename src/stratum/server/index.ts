@@ -19,6 +19,7 @@ export type Miner = {
   asicType: AsicType;
   cachedBytes: string;
   connectedAt: number;
+  port: number;
 };
 
 type MessageCallback = (socket: Socket<Miner>, request: Request) => Promise<Response>;
@@ -82,6 +83,7 @@ export default class Server {
       cachedBytes: '',
       asicType: AsicType.Unknown,
       connectedAt: Date.now(),
+      port: this.port,
     };
 
     updateMinerActivity(this.port);
@@ -115,12 +117,14 @@ export default class Server {
             } else if (error instanceof Error) {
               response.error![1] = error.message;
               this.monitoring.error(`server ${this.port}: Ending socket : ${error.message}`);
-              return socket.end(JSON.stringify(response));
+              socket.write(JSON.stringify(response));
+              this.sharesManager.sleep(1 * 1000);
+              this.sharesManager.deleteSocket(socket);
             } else throw error;
           });
       } else {
         this.monitoring.error(`server ${this.port}: Ending socket`);
-        socket.end();
+        this.sharesManager.deleteSocket(socket);
       }
     }
 
@@ -130,7 +134,7 @@ export default class Server {
       this.monitoring.error(
         `server ${this.port}: Ending socket as socket.data.cachedBytes.length > 512`
       );
-      socket.end();
+      this.sharesManager.deleteSocket(socket);
     }
   }
 }

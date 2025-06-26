@@ -22,7 +22,7 @@ export const minerHashRateGauge = new client.Gauge({
 export const activeMinerGuage = new client.Gauge({
   name: 'active_workers_10m_count',
   help: 'Active workers data',
-  labelNames: ['miner_id', 'wallet_address', 'asic_type'],
+  labelNames: ['miner_id', 'wallet_address', 'asic_type', 'port'],
 });
 
 export const workerHashRateGauge = new client.Gauge({
@@ -65,7 +65,7 @@ export const jobsNotFound = new client.Gauge({
 export const varDiff = new client.Gauge({
   name: 'var_diff',
   help: 'show the difficulty per miner over time',
-  labelNames: ['miner_id'],
+  labelNames: ['miner_id', 'port'],
 });
 
 const newRegister = new client.Registry();
