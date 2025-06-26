@@ -90,24 +90,24 @@ services:
   #     options:
   #       tag: "{{.Name}}"
 
-  # kaspad-test11: # 10BPS TESTNET
-  #   container_name: kaspad-test11
-  #   image: supertypo/rusty-kaspad:tn11
-  #   restart: unless-stopped
-  #   ports:
-  #     - "16311:16311/tcp"
-  #     - "16310:16310/tcp" # gRPC
-  #     - "17310:17310/tcp" # wRPC (borsh)
-  #     - "18310:18310/tcp" # wRPC (json)
-  #   volumes:
-  #     - /root/docker_deployment/kaspad_testnet11:/app/data/
-  #   networks:
-  #     - backend
-  #   command: kaspad --yes --nologfiles --disable-upnp --utxoindex --testnet --netsuffix=11 --rpclisten=0.0.0.0:16310 --rpclisten-borsh=0.0.0.0:17310 --rpclisten-json=0.0.0.0:18310
-  #   logging:
-  #     driver: journald
-  #     options:
-  #       tag: "{{.Name}}"
+  kaspad-test11: # 10BPS TESTNET
+    container_name: kaspad-test11
+    image: supertypo/rusty-kaspad:tn11
+    restart: unless-stopped
+    ports:
+      - "16311:16311/tcp"
+      - "16310:16310/tcp" # gRPC
+      - "17310:17310/tcp" # wRPC (borsh)
+      - "18310:18310/tcp" # wRPC (json)
+    volumes:
+      - /root/docker_deployment/kaspad_testnet11:/app/data/
+    networks:
+      - backend
+    command: kaspad --yes --nologfiles --disable-upnp --utxoindex --testnet --netsuffix=11 --rpclisten=0.0.0.0:16310 --rpclisten-borsh=0.0.0.0:17310 --rpclisten-json=0.0.0.0:18310
+    logging:
+      driver: journald
+      options:
+        tag: "{{.Name}}"
 
   go-app:
     image: ghcr.io/nacho-the-kat/katpool-blocktemplate-fetcher:beta-v1.0.2-main # Build the Go app from the ./app directory
