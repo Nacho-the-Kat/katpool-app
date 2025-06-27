@@ -19,6 +19,7 @@ import { Encoding } from './templates/jobs/encoding';
 import { AsicType } from '.';
 import type Templates from './templates';
 import Jobs from './templates/jobs';
+import logger from '../monitoring/datadog';
 
 export const WINDOW_SIZE = 10 * 60 * 1000; // 10 minutes window
 
@@ -189,6 +190,12 @@ export class SharesManager {
       this.monitoring.error(
         `SharesManager ${this.port}: Share from unauthorized worker ${minerId}@${address}`
       );
+      logger.error('Unauthorized share submission', {
+        minerId,
+        address,
+        port: this.port,
+        nonce: nonce.toString(),
+      });
       return;
     }
 
@@ -196,6 +203,12 @@ export class SharesManager {
     if (this.contributions.has(nonce)) {
       metrics.updateGaugeInc(minerDuplicatedShares, [minerId, address]);
       this.monitoring.log(`SharesManager ${this.port}: Duplicate share for miner - ${minerId}`);
+      logger.warn('Duplicate share detected', {
+        minerId,
+        address,
+        port: this.port,
+        nonce: nonce.toString(),
+      });
       return;
     } else {
       // this.contributions.set(nonce, { address, difficulty, timestamp: Date.now(), minerId });
@@ -225,6 +238,12 @@ export class SharesManager {
           `SharesManager ${this.port}: Stale header for miner ${minerId} and hash: ${hash}`
         );
       workerStats.staleShares++; // Add this to track stale shares in worker stats
+      logger.warn('Stale share detected', {
+        minerId,
+        address,
+        port: this.port,
+        jobId: id,
+      });
       return;
     }
 
@@ -237,6 +256,13 @@ export class SharesManager {
         );
       metrics.updateGaugeInc(minerInvalidShares, [minerId, address]);
       workerStats.invalidShares++;
+      logger.warn('Invalid share detected', {
+        minerId,
+        address,
+        port: this.port,
+        target: target.toString(),
+        difficulty: currentDifficulty,
+      });
       return;
     }
 
@@ -263,8 +289,38 @@ export class SharesManager {
         this.monitoring.debug(
           `SharesManager ${this.port}: Work found for ${minerId} and target: ${target}`
         );
+      
+      // Log block discovery - this is a critical event
+      logger.info('Block found!', {
+        minerId,
+        address,
+        port: this.port,
+        target: target.toString(),
+        difficulty: currentDifficulty,
+        hash: hash.substring(0, 16) + '...',
+        nonce: nonce.toString(),
+        jobId: id,
+        daaScore: daaScore.toString(),
+      });
+      
       const report = await templates.submit(minerId, address, hash, nonce);
-      if (report === 'success') workerStats.blocksFound++;
+      if (report === 'success') {
+        workerStats.blocksFound++;
+        logger.info('Block submission successful', {
+          minerId,
+          address,
+          port: this.port,
+          hash: hash.substring(0, 16) + '...',
+        });
+      } else {
+        logger.error('Block submission failed', {
+          minerId,
+          address,
+          port: this.port,
+          hash: hash.substring(0, 16) + '...',
+          report,
+        });
+      }
     }
 
     workerStats.sharesFound++;
@@ -325,6 +381,11 @@ export class SharesManager {
 
       // Clean up stale sockets
       staleSockets.forEach(socket => {
+        logger.warn('Stale socket detected, cleaning up', {
+          port: this.port,
+          remoteAddress: socket.remoteAddress,
+          lastSeen: Math.round((now - socket.data.connectedAt) / 1000) + 's ago',
+        });
         socket.end();
       });
     }, GENERAL_INTERVAL);
@@ -792,6 +853,18 @@ export class SharesManager {
       this.monitoring.debug(
         `SharesManager ${this.port}: varDiffRejectionRateThreshold - worker name: ${stats.workerName}, diff: ${stats.minDiff}, newDiff: ${newMinDiff}`
       );
+      
+      // Log difficulty adjustment due to high rejection rate
+      logger.warn('Difficulty adjusted due to high rejection rate', {
+        workerName: stats.workerName,
+        port: this.port,
+        oldDifficulty: stats.minDiff,
+        newDifficulty: newMinDiff,
+        hashrate: stats.hashrate,
+        invalidShares: stats.invalidShares,
+        totalShares: stats.sharesFound,
+        rejectionRate: (stats.invalidShares / stats.sharesFound * 100).toFixed(2) + '%',
+      });
     }
 
     if (newMinDiff != previousMinDiff) {

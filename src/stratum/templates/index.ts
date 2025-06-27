@@ -6,6 +6,7 @@ import { DEBUG } from '../../../index';
 import Database from '../../pool/database';
 import redis, { type RedisClientType } from 'redis';
 import config from '../../../config/config.json';
+import logger from '../../monitoring/datadog';
 
 export default class Templates {
   private rpc: RpcClient;
@@ -32,7 +33,14 @@ export default class Templates {
   connectRedis() {
     try {
       this.subscriber.connect();
-      this.monitoring.log(`Templates ${this.port}: Connection to redis established`);
+      this.subscriber.on('ready', () => {
+        this.monitoring.log(`Templates ${this.port}: Connection to redis established`);
+        // TODO: remove this later, or extend monitoring logger for dd 
+        logger.info(`Templates ${this.port}: Connection to redis established`);
+      });
+      this.subscriber.on('error', (err) => {
+        this.monitoring.error(`Templates ${this.port}: Redis client error: ${err}`);
+      });
     } catch (err) {
       this.monitoring.error(`Templates ${this.port}: Error connecting to redis : ${err}`);
     }
@@ -100,116 +108,134 @@ export default class Templates {
     //   extraData: `${config.miner_info}`
     // })).block as IRawBlock;
 
+    // if no block template is received within a timeout, trigger error log
     const templateChannel = config.redis_channel;
+    let templateReceivedTimeout: ReturnType<typeof setTimeout> | null = null;
+    const timeoutMs = 10000; // 10 seconds
+  
+    const resetTemplateTimeout = () => {
+      if (templateReceivedTimeout) clearTimeout(templateReceivedTimeout);
+      templateReceivedTimeout = setTimeout(() => {
+        // TODO: change log to fallback logic
+        this.monitoring.error(`Templates ${this.port}: No block template received after ${timeoutMs / 1000} seconds`);
+      }, timeoutMs);
+    };
+
+    resetTemplateTimeout();
     this.subscriber.subscribe(templateChannel, message => {
-      const fetchedTemplate = JSON.parse(message);
-      const blockTemplate = {
-        header: fetchedTemplate.Block.Header,
-        transactions: fetchedTemplate.Block.Transactions,
-      };
-      function convertJson(data: any) {
-        // Recursively traverse and transform keys
-        function transformKeys(obj: any): any {
-          if (Array.isArray(obj)) {
-            return obj.map((item: any) => transformKeys(item)); // Process arrays
-          } else if (obj !== null && typeof obj === 'object') {
-            let newObj: any = {};
-            for (const key in obj) {
-              if (obj.hasOwnProperty(key)) {
-                const newKey = key.toLowerCase(); // Convert key to lowercase
-                newObj[newKey] = transformKeys(obj[key]); // Recursively call for nested objects
+      resetTemplateTimeout();
+      try {
+        const fetchedTemplate = JSON.parse(message);
+        const blockTemplate = {
+          header: fetchedTemplate.Block.Header,
+          transactions: fetchedTemplate.Block.Transactions,
+        };
+        function convertJson(data: any) {
+          // Recursively traverse and transform keys
+          function transformKeys(obj: any): any {
+            if (Array.isArray(obj)) {
+              return obj.map((item: any) => transformKeys(item)); // Process arrays
+            } else if (obj !== null && typeof obj === 'object') {
+              let newObj: any = {};
+              for (const key in obj) {
+                if (obj.hasOwnProperty(key)) {
+                  const newKey = key.toLowerCase(); // Convert key to lowercase
+                  newObj[newKey] = transformKeys(obj[key]); // Recursively call for nested objects
+                }
               }
+              return newObj;
             }
-            return newObj;
+            return obj; // Return the value if it's neither an array nor an object
           }
-          return obj; // Return the value if it's neither an array nor an object
+
+          // First, transform all keys to lowercase
+          const transformedKeysData = transformKeys(data);
+          const parents = transformedKeysData.header.parents;
+          delete transformedKeysData.header.parents;
+
+          let parentsByLevel: any[] = [];
+          parents.map((item: any, i: number) => {
+            parentsByLevel[i] = item.parenthashes;
+          });
+
+          transformedKeysData.header['parentsByLevel'] = parentsByLevel;
+
+          return transformedKeysData;
+        }
+        const converted = convertJson(blockTemplate);
+        const tHeader: IRawHeader = {
+          version: converted.header.version,
+          parentsByLevel: converted.header.parentsByLevel,
+          hashMerkleRoot: converted.header.hashmerkleroot,
+          acceptedIdMerkleRoot: converted.header.acceptedidmerkleroot,
+          utxoCommitment: converted.header.utxocommitment,
+          timestamp: BigInt(converted.header.timestamp),
+          bits: converted.header.bits,
+          nonce: BigInt(converted.header.nonce),
+          daaScore: BigInt(converted.header.daascore),
+          blueWork: converted.header.bluework,
+          blueScore: BigInt(converted.header.bluescore),
+          pruningPoint: converted.header.pruningpoint,
+        };
+        const tTransactions = converted.transactions.map((tx: any) => ({
+          version: tx.version,
+          inputs:
+            tx.inputs.length > 0
+              ? tx.inputs.map((inputItem: any) => ({
+                  previousOutpoint: {
+                    transactionId: inputItem.previousoutpoint.transactionid,
+                    index: inputItem.previousoutpoint.index,
+                  },
+                  signatureScript: inputItem.signaturescript,
+                  sequence: BigInt(inputItem.sequence),
+                  sigOpCount: inputItem.sigopcount,
+                  verboseData: inputItem.verbosedata,
+                }))
+              : tx.inputs,
+          outputs:
+            tx.outputs.length > 0
+              ? tx.outputs.map((outputItem: any) => ({
+                  value: BigInt(outputItem.amount),
+                  scriptPublicKey: outputItem.scriptpublickey,
+                  verboseData: outputItem.verbosedata,
+                }))
+              : tx.outputs,
+          lockTime: BigInt(tx.locktime),
+          subnetworkId: tx.subnetworkid,
+          gas: BigInt(tx.gas),
+          payload: tx.payload,
+          mass: BigInt(tx.mass || 0),
+          verboseData: tx.verbosedata,
+        }));
+        const template = {
+          header: tHeader,
+          transactions: tTransactions,
+        };
+        if ((template.header.blueWork as string).length % 2 !== 0) {
+          template.header.blueWork = '0' + template.header.blueWork;
         }
 
-        // First, transform all keys to lowercase
-        const transformedKeysData = transformKeys(data);
-        const parents = transformedKeysData.header.parents;
-        delete transformedKeysData.header.parents;
+        const header = new Header(template.header);
+        const headerHash = header.finalize();
 
-        let parentsByLevel: any[] = [];
-        parents.map((item: any, i: number) => {
-          parentsByLevel[i] = item.parenthashes;
-        });
+        if (this.templates.has(headerHash)) return;
 
-        transformedKeysData.header['parentsByLevel'] = parentsByLevel;
+        const proofOfWork = new PoW(header);
+        this.templates.set(headerHash, [template as IBlock, proofOfWork]);
+        const id = this.jobs.deriveId(headerHash);
+        Jobs.setJobIdDaaScoreMapping(id, template.header.daaScore);
 
-        return transformedKeysData;
+        //if (DEBUG) this.monitoring.debug(`Templates ${this.port}: templates.size: ${this.templates.size}, cacheSize: ${this.cacheSize}`)
+
+        if (this.templates.size > this.cacheSize) {
+          this.templates.delete(this.templates.entries().next().value![0]);
+          this.jobs.expireNext();
+        }
+
+        callback(id, proofOfWork.prePoWHash, header.timestamp, template.header);
+      } catch (err) {
+        this.monitoring.error(`Templates ${this.port}: Error processing template: ${err}`);
       }
-      const converted = convertJson(blockTemplate);
-      const tHeader: IRawHeader = {
-        version: converted.header.version,
-        parentsByLevel: converted.header.parentsByLevel,
-        hashMerkleRoot: converted.header.hashmerkleroot,
-        acceptedIdMerkleRoot: converted.header.acceptedidmerkleroot,
-        utxoCommitment: converted.header.utxocommitment,
-        timestamp: BigInt(converted.header.timestamp),
-        bits: converted.header.bits,
-        nonce: BigInt(converted.header.nonce),
-        daaScore: BigInt(converted.header.daascore),
-        blueWork: converted.header.bluework,
-        blueScore: BigInt(converted.header.bluescore),
-        pruningPoint: converted.header.pruningpoint,
-      };
-      const tTransactions = converted.transactions.map((tx: any) => ({
-        version: tx.version,
-        inputs:
-          tx.inputs.length > 0
-            ? tx.inputs.map((inputItem: any) => ({
-                previousOutpoint: {
-                  transactionId: inputItem.previousoutpoint.transactionid,
-                  index: inputItem.previousoutpoint.index,
-                },
-                signatureScript: inputItem.signaturescript,
-                sequence: BigInt(inputItem.sequence),
-                sigOpCount: inputItem.sigopcount,
-                verboseData: inputItem.verbosedata,
-              }))
-            : tx.inputs,
-        outputs:
-          tx.outputs.length > 0
-            ? tx.outputs.map((outputItem: any) => ({
-                value: BigInt(outputItem.amount),
-                scriptPublicKey: outputItem.scriptpublickey,
-                verboseData: outputItem.verbosedata,
-              }))
-            : tx.outputs,
-        lockTime: BigInt(tx.locktime),
-        subnetworkId: tx.subnetworkid,
-        gas: BigInt(tx.gas),
-        payload: tx.payload,
-        mass: BigInt(tx.mass || 0),
-        verboseData: tx.verbosedata,
-      }));
-      const template = {
-        header: tHeader,
-        transactions: tTransactions,
-      };
-      if ((template.header.blueWork as string).length % 2 !== 0) {
-        template.header.blueWork = '0' + template.header.blueWork;
-      }
-
-      const header = new Header(template.header);
-      const headerHash = header.finalize();
-
-      if (this.templates.has(headerHash)) return;
-
-      const proofOfWork = new PoW(header);
-      this.templates.set(headerHash, [template as IBlock, proofOfWork]);
-      const id = this.jobs.deriveId(headerHash);
-      Jobs.setJobIdDaaScoreMapping(id, template.header.daaScore);
-
-      //if (DEBUG) this.monitoring.debug(`Templates ${this.port}: templates.size: ${this.templates.size}, cacheSize: ${this.cacheSize}`)
-
-      if (this.templates.size > this.cacheSize) {
-        this.templates.delete(this.templates.entries().next().value![0]);
-        this.jobs.expireNext();
-      }
-
-      callback(id, proofOfWork.prePoWHash, header.timestamp, template.header);
     });
     // })
 
