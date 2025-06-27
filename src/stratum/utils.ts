@@ -21,6 +21,7 @@ export function stringifyHashrate(ghs: number): string {
 }
 
 export function getAverageHashrateGHs(stats: WorkerStats, windowSize = WINDOW_SIZE): number {
+  if (!stats.recentShares || stats.recentShares.isEmpty()) return 0;
   const relevantShares: { timestamp: number; difficulty: number }[] = [];
 
   // Use Denque's toArray() method to filter relevant shares

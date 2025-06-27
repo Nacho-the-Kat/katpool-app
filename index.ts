@@ -167,7 +167,7 @@ for (const stratumConfig of config.stratum) {
 export const pool = new Pool(treasury, stratums);
 
 // Function to calculate and update pool hash rate
-function calculatePoolHashrate() {
+export function calculatePoolHashrate() {
   const addressHashrates: Map<string, number> = new Map();
   let poolHashRate = 0;
 
@@ -213,12 +213,16 @@ const interval = setInterval(() => {
   const minutesSinceStart = Math.floor((now - poolStartTime) / (60 * 1000));
 
   if (allowedRunMinutes.has(minutesSinceStart)) {
+    monitoring.debug(
+      `Main: Estimating initial hashrates. After ${minutesSinceStart} minutes since pool start.`
+    );
     calculatePoolHashrate();
     allowedRunMinutes.delete(minutesSinceStart); // ensure it runs only once per target minute
   }
 
   // Stop interval after 8 mins passed
   if (minutesSinceStart > 8 || allowedRunMinutes.size === 0) {
+    monitoring.debug(`Main: Stopping interval after ${minutesSinceStart} minutes.`);
     clearInterval(interval);
   }
 }, 60 * 1000); // check every minute
