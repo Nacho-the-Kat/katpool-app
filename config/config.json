@@ -1,6 +1,6 @@
 {
   "node": [],
-  "network": "testnet-11",
+  "network": "testnet-10",
   "pool_id": "us-katpool1",
   "location": "us-east",
   "hostname": "kas.katpool.xyz",
