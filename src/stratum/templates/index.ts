@@ -26,7 +26,7 @@ export default class Templates {
     this.subscriber = redis.createClient({
       url: 'redis://' + config.redis_address,
     });
-    // this.connectRedis();
+    this.connectRedis();
   }
 
   connectRedis() {
@@ -94,13 +94,13 @@ export default class Templates {
     callback: (id: string, hash: string, timestamp: bigint, header: IRawHeader) => void
   ) {
     this.monitoring.log(`Templates ${this.port}: Registering new template callback`);
-    this.rpc.addEventListener('new-block-template', async () => {
-      const template = (
-        await this.rpc.getBlockTemplate({
-          payAddress: this.address,
-          extraData: `${config.miner_info}`,
-        })
-      ).block as IRawBlock;
+    // this.rpc.addEventListener('new-block-template', async () => {
+    //   const template = (
+    //     await this.rpc.getBlockTemplate({
+    //       payAddress: this.address,
+    //       extraData: `${config.miner_info}`,
+    //     })
+    //   ).block as IRawBlock;
 
       const templateChannel = config.redis_channel;
       this.subscriber.subscribe(templateChannel, message => {
@@ -213,7 +213,7 @@ export default class Templates {
 
         callback(id, proofOfWork.prePoWHash, header.timestamp, template.header);
       });
-    });
+    // });
 
     await this.rpc.subscribeNewBlockTemplate();
   }
