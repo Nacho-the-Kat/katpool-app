@@ -1,6 +1,6 @@
 {
   "node": [],
-  "network": "mainnet",
+  "network": "testnet-10",
   "pool_id": "us-katpool1",
   "location": "us-east",
   "hostname": "kas.katpool.xyz",
@@ -128,5 +128,5 @@
   "nachoSwap": 95,
   "nachoRebateBuffer": "500000000",
   "defaultTicker": "NACHO",
-  "backupEmailAddress": "socials@onargon.com"
+  "backupEmailAddress": "talantbekov123@gmail.com"
 }
