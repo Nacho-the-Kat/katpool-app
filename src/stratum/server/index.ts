@@ -4,6 +4,7 @@ import { Encoding } from '../templates/jobs/encoding';
 import Monitoring from '../../monitoring';
 import { AsicType } from '..';
 import type { SharesManager } from '../sharesManager';
+import { markServerUp, updateMinerActivity } from '../../shared/heartbeat';
 
 export type Worker = {
   address: string;
@@ -68,6 +69,8 @@ export default class Server {
         },
       },
     });
+
+    markServerUp(this.port);
   }
 
   private onConnect(socket: Socket<Miner>) {
@@ -80,9 +83,13 @@ export default class Server {
       asicType: AsicType.Unknown,
       connectedAt: Date.now(),
     };
+
+    updateMinerActivity(this.port);
   }
 
   private onData(socket: Socket<Miner>, data: Buffer) {
+    updateMinerActivity(this.port); // Any connection
+
     socket.data.cachedBytes += data;
 
     const messages = socket.data.cachedBytes.split('\n');

@@ -15,9 +15,9 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
-      - name: get epository name
+      - name: get repository name
         run: |
           echo "REPOSITORY_NAME=${OWNER,,}" >>${GITHUB_ENV}
         env:
@@ -30,22 +30,27 @@ jobs:
       - name: Docker Login
         run: echo "${{ secrets.GB_KATPOOL_TOKEN }}" | docker login ${{ env.REGISTRY }} --username argonmining --password-stdin
 
-      - name: Docker Build
+      - name: Docker Build with Cache
         env:
           IMAGE_NAME: ${{ env.REPOSITORY_NAME }}:beta-v1.0.2-${{ env.branch_name }}
-        run: docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} .
+          CACHE_FROM: ${{ env.REGISTRY }}/${{ env.REPOSITORY_NAME }}:buildcache
+        run: |
+          docker buildx build \
+            --cache-from=type=registry,ref=${{ env.CACHE_FROM }} \
+            --cache-to=type=registry,ref=${{ env.CACHE_FROM }},mode=max \
+            --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} \
+            --push \
+            .
 
-      - name: Docker Push
-        env:
-          IMAGE_NAME: ${{ env.REPOSITORY_NAME }}:beta-v1.0.2-${{ env.branch_name }}
-        run: docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-
-      - name: Docker Build DB Backup
-        env:
-          IMAGE_NAME: ${{ env.REPOSITORY_NAME }}-db-backup:beta-v1.0.2-${{ env.branch_name }}
-        run: docker build -f backup/Dockerfile -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} backup/
-
-      - name: Docker Push DB Backup
+      - name: Docker Build DB Backup with Cache
         env:
           IMAGE_NAME: ${{ env.REPOSITORY_NAME }}-db-backup:beta-v1.0.2-${{ env.branch_name }}
-        run: docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          CACHE_FROM: ${{ env.REGISTRY }}/${{ env.REPOSITORY_NAME }}-db-backup:buildcache
+        run: |
+          docker buildx build \
+            --cache-from=type=registry,ref=${{ env.CACHE_FROM }} \
+            --cache-to=type=registry,ref=${{ env.CACHE_FROM }},mode=max \
+            --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} \
+            --push \
+            -f backup/Dockerfile \
+            backup/

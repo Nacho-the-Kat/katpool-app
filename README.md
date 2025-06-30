@@ -283,7 +283,7 @@ Special thanks to [KaffinPX](https://github.com/KaffinPX) for providing the foun
 
 2. **Fetching Block Templates**:
 
-   - We have used [go-app](https://github.com/Nacho-the-Kat/katpool-blocktemplate-fetcher): to fetch new block template from the Kaspa network using _gRPC_ connection and sends them over redis channel.
+   - We have used [go-app](https://github.com/Nacho-the-Kat/katpool-blocktemplate-fetcher): to fetch new block template from the Kaspa network using _gRPC_ connection and sends them over Redis channel.
    - Katpool-app fetches block templates from Redis channel.
    - It creates a PoW object from the template to help miners validate their work.
    - The block template and PoW object are stored in the `templates` map.
@@ -344,7 +344,6 @@ The Stratum app manages the entire lifecycle of mining jobs, from distributing t
 
 ## Stratum
 
-Explanation of the TypeScript Code for the Stratum Part of a Mining Pool in Kaspa
 This TypeScript code defines a Stratum class that handles the stratum protocol for a Kaspa mining pool. Stratum is a communication protocol for mining pools, which allows miners to connect to the pool and submit their work. The Stratum class extends EventEmitter to handle various events and includes methods for managing miner connections, contributions, and communication with the mining pool server.
 
 ### Detailed Breakdown
@@ -356,7 +355,7 @@ This TypeScript code defines a Stratum class that handles the stratum protocol f
 - **`randomBytes`**: Used to generate random bytes, typically for extra nonces.
 - **`Server`**, **`Miner`**, **`Worker`**: Import server-related entities.
 - **`Request`**, **`Response`**, **`Event`**, **`errors`**: Protocol definitions for requests, responses, and errors.
-- **`Templates`**: Manages job templates.
+- **`Templates`**: Manages job templates. Listens to job templates over Redis channel and the processes them.
 - **`calculateTarget`**, **`Address`**: Utilities for target calculation and address validation.
 - **`Encoding`**, **`encodeJob`**: Job encoding utilities.
 
@@ -365,23 +364,40 @@ This TypeScript code defines a Stratum class that handles the stratum protocol f
 ##### Properties
 
 - **`server`**: An instance of the `Server` class, handling the mining pool server.
-- **`templates`**: Manages job templates.
+- **`templates`**: Manages job templates. Listens to job templates over Redis channel and the processes them.
 - **`contributions`**: Tracks contributions from miners.
 - **`subscriptors`**: Keeps track of subscribed miners' sockets.
 - **`miners`**: Maps miner addresses to their associated sockets.
 
 ##### Constructor
 
-- **`templates`**: Templates manager.
-- **`port`**: Server port.
+- **`templates`**: Templates manager. Listens to job templates over Redis channel and the processes them.
 - **`initialDifficulty`**: Initial mining difficulty.
 
-Sets up the server, templates, and registers template announcements.
+- **`poolAddress`**: The wallet address to receive mined block rewards.
+
+- **`sharesPerMin`**: Target number of shares expected per miner per minute, used for variable difficulty adjustments.
+
+- **`clampPow2`**: Whether to clamp difficulty adjustments to the nearest power of 2.
+
+- **`varDiff`**: Enables or disables variable difficulty. When enabled, the difficulty adjusts based on miner performance.
+
+- **`extraNonce`**:
+
+  - Size in bytes of extranonce, from 0 (no extranonce) to 3.
+  - More bytes allow for more clients with unique nonce-spaces.
+  - 1 byte = 256 clients, 2 bytes = 65536, 3 bytes = 16777216.
+
+- **`stratumMinDiff`**: The minimum difficulty assigned on the Stratum port.
+
+- **`stratumMaxDiff`**: Sets up the server, templates, and registers template announcements.
 
 ##### Methods
 
 - **`dumpContributions()`**:
+
   - Clears and returns the current contributions.
+
 - **`addShare(address: string, hash: string, difficulty: number, nonce: bigint)`**:
 
   - Checks for duplicate shares.
@@ -424,7 +440,7 @@ This code defines a Server class that sets up and manages TCP socket connections
 
 #### Constructor
 
-- **Parameters**: `port`, `difficulty`, `onMessage`.
+- **Parameters**: `port`, `difficulty`, `onMessage`, `sharesManager`.
 - **Function**:
   - Sets the initial difficulty.
   - Binds the `onMessage` callback.
@@ -453,7 +469,7 @@ This class effectively manages the lifecycle of miner connections, from establis
 
 ## Stratum templates
 
-This TypeScript code defines a Templates class responsible for managing mining job templates for a Kaspa mining pool. The class interfaces with a RpcClient to retrieve new block templates, manage proof-of-work (PoW) computations, and handle job submissions.
+This TypeScript code defines a Templates class responsible for managing mining job templates for a Kaspa mining pool. The class subscribes to a Redis channel to retrieve new block templates and processes them, manage proof-of-work (PoW) computations, and handle job submissions.
 
 ### Key Components
 
@@ -463,8 +479,9 @@ This TypeScript code defines a Templates class responsible for managing mining j
    - `Jobs`: A class handling job-related operations.
 
 2. **Templates Class**:
-   - Manages block templates and proof-of-work data.
-   - Interacts with the Kaspa RPC client to get new block templates and submit completed work.
+   - Manages block templates received over Redis channel and proof-of-work data.
+   - Subscribed to Redis channel to receive and process block templates.
+   - Interacts with the Kaspa RPC client to submit completed work.
 
 ### Class Properties
 
@@ -517,7 +534,7 @@ This TypeScript code defines a Templates class responsible for managing mining j
 
 This `Templates` class is integral to managing the lifecycle of mining job templates in the pool. It handles:
 
-- Retrieving new block templates from the Kaspa node.
+- Retrieving new block templates over the Redis channel and processes them.
 - Managing the cache of templates and corresponding PoW data.
 - Submitting completed blocks back to the node.
 - Notifying the mining pool of new job templates.

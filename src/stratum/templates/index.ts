@@ -1,4 +1,4 @@
-import type { IBlock, RpcClient, IRawHeader } from '../../../wasm/kaspa';
+import type { IBlock, RpcClient, IRawHeader, IRawBlock } from '../../../wasm/kaspa';
 import { Header, PoW } from '../../../wasm/kaspa';
 import Jobs from './jobs';
 import Monitoring from '../../monitoring';
@@ -103,10 +103,12 @@ export default class Templates {
   ) {
     this.monitoring.log(`Templates ${this.port}: Registering new template callback`);
     // this.rpc.addEventListener('new-block-template', async () => {
-    // const template = (await this.rpc.getBlockTemplate({
-    //   payAddress: this.address,
-    //   extraData: `${config.miner_info}`
-    // })).block as IRawBlock;
+    //   const template = (
+    //     await this.rpc.getBlockTemplate({
+    //       payAddress: this.address,
+    //       extraData: `${config.miner_info}`,
+    //     })
+    //   ).block as IRawBlock;
 
     // if no block template is received within a timeout, trigger error log
     const templateChannel = config.redis_channel;

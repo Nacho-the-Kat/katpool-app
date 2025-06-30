@@ -51,17 +51,17 @@ RUN cargo install wasm-pack
 # Step 6: Add the wasm32-unknown-unknown target for wasm compilation
 RUN rustup target add wasm32-unknown-unknown
 
-# Step 7: Clone the rusty-kaspa repository
-RUN git clone https://github.com/kaspanet/rusty-kaspa /rusty-kaspa
+# Step 7: Clone the rusty-kaspa repository (this layer will be cached unless the git ref changes)
+RUN git clone https://github.com/kaspanet/rusty-kaspa /rusty-kaspa && \
+    cd /rusty-kaspa && \
+    git checkout v1.0.0
 
-# Step 8: Change the working directory to `wasm`
-WORKDIR /rusty-kaspa
-
-RUN git checkout v1.0.0
-
+# Step 8: Build WASM (this expensive step will be cached)
 WORKDIR /rusty-kaspa/wasm
-# Step 9: Run the build-node script from the `wasm` directory
-RUN ./build-node
+RUN --mount=type=cache,target=/root/.cargo/registry \
+    --mount=type=cache,target=/root/.cargo/git \
+    --mount=type=cache,target=/rusty-kaspa/target \
+    ./build-node
 
 # Use the official Node.js image as the base image
 FROM node:20
@@ -69,20 +69,20 @@ FROM node:20
 # Install Bun
 RUN curl -fsSL https://bun.sh/install | bash
 
-# Set the working directory in the container
-WORKDIR /app
-
-COPY --from=builder /rusty-kaspa/wasm/nodejs /app/wasm
-
 # Add Bun to the PATH environment variable
 ENV PATH="/root/.bun/bin:$PATH"
 
-# Copy the package.json and bun.lockb files to the working directory
+# Set the working directory in the container
+WORKDIR /app
+
+# Copy WASM build output from builder stage
+COPY --from=builder /rusty-kaspa/wasm/nodejs /app/wasm
+
+# Copy package.json first for better layer caching
 COPY package.json ./
 
-# Install dependencies
-RUN bun install
-RUN bun upgrade --canary
+# Install dependencies (this layer will be cached unless package.json changes)
+RUN bun install && bun upgrade --canary
 
 # Copy the rest of your application code to the working directory
 COPY . .

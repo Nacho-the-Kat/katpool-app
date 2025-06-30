@@ -3,6 +3,8 @@ import PQueue from 'p-queue';
 import Monitoring from '../monitoring';
 import express from 'express';
 import client from 'prom-client';
+import { poolStartTime } from '../..';
+import { getServerStatus, serverUptime } from '../shared/heartbeat';
 
 const queue = new PQueue({ concurrency: 1 });
 const monitoring = new Monitoring();
@@ -83,6 +85,33 @@ export function startMetricsServer() {
   app.get('/metrics', async (req, res) => {
     res.set('Content-Type', newRegister.contentType);
     res.end(await newRegister.metrics());
+  });
+
+  app.get('/health', (req, res) => {
+    const statuses: Record<string, string> = {};
+
+    for (const portStr of Object.keys(serverUptime)) {
+      const port = Number(portStr);
+      statuses[port] = getServerStatus(port); // 'active', 'idle', or 'dead'
+    }
+
+    const hasDead = Object.values(statuses).includes('dead');
+
+    const activePorts = Object.entries(statuses)
+      .filter(([_, status]) => status === 'active')
+      .map(([port]) => port);
+
+    monitoring.log(`Prometheus: [Heartbeat] Bun server states: ${JSON.stringify(statuses)}`);
+
+    const status = hasDead ? 'unhealthy' : 'ok';
+    const statusCode = hasDead ? 503 : 200;
+
+    res.status(statusCode).json({
+      status,
+      startTime: poolStartTime,
+      activePorts,
+      allPorts: statuses,
+    });
   });
 
   app.listen(9999, () => {

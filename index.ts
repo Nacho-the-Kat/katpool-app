@@ -18,16 +18,23 @@ import path from 'path';
 import { stringifyHashrate } from './src/stratum/utils';
 import { WINDOW_SIZE } from './src/stratum/sharesManager';
 
-const poolStartTime = Date.now();
+
+export const poolStartTime = Date.now();
 const monitoring = new Monitoring();
+monitoring.log(`INFO: config used - ${JSON.stringify(config, null, 2)}`);
 monitoring.log(`Main: Pool started at ${new Date(poolStartTime).toISOString()}`);
+
+// Declare treasury at the top level to avoid initialization issues
+let treasury: Treasury;
 
 async function shutdown() {
   monitoring.log('\n\nMain: Gracefully shutting down the pool...');
   try {
     await rpc.unsubscribeBlockAdded();
     await rpc.unsubscribeNewBlockTemplate();
-    await treasury.unregisterProcessor();
+    if (treasury) {
+      await treasury.unregisterProcessor();
+    }
   } catch (error) {
     monitoring.error(`Main: Removing and unsubscribing events: ${error}`);
   }
@@ -103,7 +110,7 @@ try {
   monitoring.error(`Main: Error during RPC connect: ${error}`);
 }
 
-rpc.addEventListener('disconnect', async event => {
+rpc.addEventListener('disconnect', async (event: any) => {
   monitoring.debug('Main: RPC is disconnected');
 });
 
@@ -134,7 +141,7 @@ sendConfig();
 
 startMetricsServer();
 
-const treasury = new Treasury(rpc, serverInfo.networkId, treasuryPrivateKey, config.treasury.fee);
+treasury = new Treasury(rpc, serverInfo.networkId, treasuryPrivateKey, config.treasury.fee);
 // Array to hold multiple pools
 export const stratums: Stratum[] = [];
 

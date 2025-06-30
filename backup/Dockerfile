@@ -7,7 +7,7 @@ RUN apt-get update && apt-get install -y curl
 FROM node:20 AS node
 
 # Install Bun
-RUN curl -fsSL https://bun.sh/install | bash && echo $(date +%s)
+RUN curl -fsSL https://bun.sh/install | bash
 
 # Set /app as the working directory for your application
 WORKDIR /app
@@ -26,6 +26,7 @@ COPY --from=node /root/.bun /root/.bun
 
 # Add Bun to the PATH again
 ENV PATH="/root/.bun/bin:$PATH"
+ENV NODE_PATH=/app/node_modules
 
 # Copy the backup script into the container
 COPY backup.sh /app/backup.sh
