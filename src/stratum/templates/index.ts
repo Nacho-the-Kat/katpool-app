@@ -110,6 +110,7 @@ export default class Templates {
     //     })
     //   ).block as IRawBlock;
 
+<<<<<<< HEAD
     // if no block template is received within a timeout, trigger error log
     const templateChannel = config.redis_channel;
     let templateReceivedTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -127,6 +128,10 @@ export default class Templates {
     this.subscriber.subscribe(templateChannel, message => {
       resetTemplateTimeout();
       try {
+=======
+      const templateChannel = config.redis_channel;
+      this.subscriber.subscribe(templateChannel, message => {
+>>>>>>> feat/remove-this-branch-test-payments
         const fetchedTemplate = JSON.parse(message);
         const blockTemplate = {
           header: fetchedTemplate.Block.Header,
@@ -235,11 +240,16 @@ export default class Templates {
         }
 
         callback(id, proofOfWork.prePoWHash, header.timestamp, template.header);
+<<<<<<< HEAD
       } catch (err) {
         this.monitoring.error(`Templates ${this.port}: Error processing template: ${err}`);
       }
     });
     // })
+=======
+      });
+    // });
+>>>>>>> feat/remove-this-branch-test-payments
 
     await this.rpc.subscribeNewBlockTemplate();
   }
