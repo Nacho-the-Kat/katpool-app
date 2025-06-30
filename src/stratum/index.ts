@@ -15,6 +15,7 @@ import { metrics } from '../../index';
 import Denque from 'denque';
 import JsonBig from 'json-bigint';
 import config from '../../config/config.json';
+import logger from '../monitoring/datadog';
 
 const bitMainRegex = new RegExp('.*(GodMiner).*', 'i');
 const iceRiverRegex = new RegExp('.*(IceRiverMiner).*', 'i');
@@ -261,6 +262,15 @@ export default class Stratum extends EventEmitter {
           this.monitoring.log(
             `Stratum ${this.port}: Miner subscribed from ${socket.remoteAddress}`
           );
+          
+          // Log miner subscription
+          logger.info('Miner subscribed', {
+            port: this.port,
+            remoteAddress: socket.remoteAddress,
+            minerType: request.params[0] || 'unknown',
+            asicType: socket.data.asicType,
+            extraNonce: socket.data.extraNonce || '',
+          });
           break;
         }
         case 'mining.authorize': {
@@ -355,6 +365,18 @@ export default class Stratum extends EventEmitter {
               `Stratum ${this.port}: Authorizing worker - Address: ${address}, Worker Name: ${name}`
             );
 
+          // Log miner authorization
+          logger.info('Miner authorized', {
+            port: this.port,
+            address,
+            workerName: name,
+            initialDifficulty: userDiff,
+            asicType: socket.data.asicType,
+            varDiffEnabled: varDiffStatus,
+            remoteAddress: socket.remoteAddress,
+            extraNonce: socket.data.extraNonce || '',
+          });
+
           metrics.updateGaugeValue(
             activeMinerGuage,
             [name, address, socket.data.asicType],
@@ -376,6 +398,16 @@ export default class Stratum extends EventEmitter {
               this.monitoring.debug(
                 `Stratum ${this.port}: Mismatching worker details - worker.Addr: ${worker?.address}, Address: ${address}, Worker Name: ${name}`
               );
+            
+            // Log unauthorized share submission attempt
+            logger.warn('Unauthorized share submission attempt', {
+              port: this.port,
+              address,
+              workerName: name,
+              workerAddress: worker?.address,
+              remoteAddress: socket.remoteAddress,
+            });
+            
             throw Error(
               `Mismatching worker details request: worker.Addr: ${worker?.address}, ${request.params[0]}`
             );
@@ -387,6 +419,16 @@ export default class Stratum extends EventEmitter {
                 `Stratum ${this.port}: Job not found - Address: ${address}, Worker Name: ${name}`
               );
             metrics.updateGaugeInc(jobsNotFound, [name, address]);
+            
+            // Log job not found
+            logger.warn('Job not found for share submission', {
+              port: this.port,
+              address,
+              workerName: name,
+              jobId: request.params[1],
+              remoteAddress: socket.remoteAddress,
+            });
+            
             response.result = false;
             response.error = new StratumError('job-not-found').toDump();
             return response;
@@ -432,6 +474,16 @@ export default class Stratum extends EventEmitter {
                 request.params[1]
               );
             } catch (err: any) {
+              // Log share processing error
+              logger.error('Share processing error', {
+                port: this.port,
+                address,
+                workerName: name,
+                jobId: request.params[1],
+                nonce: request.params[2],
+                error: err instanceof Error ? err.message : String(err),
+              });
+              
               if (!(err instanceof Error)) throw err;
               switch (err.message) {
                 case 'Duplicate share':
@@ -447,6 +499,14 @@ export default class Stratum extends EventEmitter {
                   response.error = new StratumError('low-difficulty-share').toDump();
                   break;
                 default:
+                  logger.error('Unknown share processing error', {
+                    port: this.port,
+                    address,
+                    workerName: name,
+                    jobId: request.params[1],
+                    nonce: request.params[2],
+                    error: err.toString(),
+                  });
                   throw err;
               }
               response.result = false;
@@ -454,9 +514,9 @@ export default class Stratum extends EventEmitter {
           }
           break;
         }
-
-        default:
+        default: {
           throw new StratumError('unknown');
+        }
       }
       return response;
     } finally {

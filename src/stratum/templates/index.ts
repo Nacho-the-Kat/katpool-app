@@ -6,6 +6,7 @@ import { DEBUG } from '../../../index';
 import Database from '../../pool/database';
 import redis, { type RedisClientType } from 'redis';
 import config from '../../../config/config.json';
+import logger from '../../monitoring/datadog';
 
 export default class Templates {
   private rpc: RpcClient;
@@ -32,7 +33,14 @@ export default class Templates {
   connectRedis() {
     try {
       this.subscriber.connect();
-      this.monitoring.log(`Templates ${this.port}: Connection to redis established`);
+      this.subscriber.on('ready', () => {
+        this.monitoring.log(`Templates ${this.port}: Connection to redis established`);
+        // TODO: remove this later, or extend monitoring logger for dd 
+        logger.info(`Templates ${this.port}: Connection to redis established`);
+      });
+      this.subscriber.on('error', (err) => {
+        this.monitoring.error(`Templates ${this.port}: Redis client error: ${err}`);
+      });
     } catch (err) {
       this.monitoring.error(`Templates ${this.port}: Error connecting to redis : ${err}`);
     }
@@ -102,8 +110,28 @@ export default class Templates {
     //     })
     //   ).block as IRawBlock;
 
+<<<<<<< HEAD
+    // if no block template is received within a timeout, trigger error log
+    const templateChannel = config.redis_channel;
+    let templateReceivedTimeout: ReturnType<typeof setTimeout> | null = null;
+    const timeoutMs = 10000; // 10 seconds
+  
+    const resetTemplateTimeout = () => {
+      if (templateReceivedTimeout) clearTimeout(templateReceivedTimeout);
+      templateReceivedTimeout = setTimeout(() => {
+        // TODO: change log to fallback logic
+        this.monitoring.error(`Templates ${this.port}: No block template received after ${timeoutMs / 1000} seconds`);
+      }, timeoutMs);
+    };
+
+    resetTemplateTimeout();
+    this.subscriber.subscribe(templateChannel, message => {
+      resetTemplateTimeout();
+      try {
+=======
       const templateChannel = config.redis_channel;
       this.subscriber.subscribe(templateChannel, message => {
+>>>>>>> feat/remove-this-branch-test-payments
         const fetchedTemplate = JSON.parse(message);
         const blockTemplate = {
           header: fetchedTemplate.Block.Header,
@@ -212,8 +240,16 @@ export default class Templates {
         }
 
         callback(id, proofOfWork.prePoWHash, header.timestamp, template.header);
+<<<<<<< HEAD
+      } catch (err) {
+        this.monitoring.error(`Templates ${this.port}: Error processing template: ${err}`);
+      }
+    });
+    // })
+=======
       });
     // });
+>>>>>>> feat/remove-this-branch-test-payments
 
     await this.rpc.subscribeNewBlockTemplate();
   }
