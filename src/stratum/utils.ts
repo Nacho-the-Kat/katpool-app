@@ -1,4 +1,5 @@
 import { WINDOW_SIZE, type WorkerStats } from './sharesManager';
+import Monitoring from '../monitoring';
 
 const bigGig = Math.pow(10, 9);
 const maxTarget = BigInt('0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF');
@@ -21,9 +22,10 @@ export function stringifyHashrate(ghs: number): string {
 }
 
 export function getAverageHashrateGHs(stats: WorkerStats, windowSize = WINDOW_SIZE): number {
+  const monitoring = new Monitoring();
   if (!stats.recentShares || stats.recentShares.isEmpty()) return 0;
   const relevantShares: { timestamp: number; difficulty: number }[] = [];
-
+  monitoring.debug(`recentShares: ${stats.recentShares.toArray().length} shares`);
   // Use Denque's toArray() method to filter relevant shares
   stats.recentShares.toArray().forEach(share => {
     if (Date.now() - share.timestamp <= windowSize) {
@@ -32,6 +34,13 @@ export function getAverageHashrateGHs(stats: WorkerStats, windowSize = WINDOW_SI
   });
 
   if (relevantShares.length === 0) return 0;
+
+  // Log the first element of the relevant shares array
+  if (relevantShares.length > 0) {
+    const firstShare = relevantShares[0];
+    monitoring.debug(`First share in relevantShares: timestamp=${firstShare.timestamp}, difficulty=${firstShare.difficulty}`);
+    monitoring.debug(`Object keys: ${Object.keys(firstShare)}`);
+  }
 
   const avgDifficulty =
     relevantShares.reduce((acc, share) => acc + diffToHash(share.difficulty), 0) /

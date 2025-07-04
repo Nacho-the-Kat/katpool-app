@@ -358,8 +358,9 @@ export class SharesManager {
           socket.data.workers.forEach(worker => {
             const stats = minerData.workerStats.get(worker.name);
             if (stats && stats.lastShare) {
-              const age = now - lastSeen;
+              const age = now - lastSeen; // age is the time since the last share was found
               if (age <= WINDOW_SIZE && age > 0) {
+                this.monitoring.debug(`${worker.name} ${address} | stats: ${JSON.stringify(stats)}`);
                 let workerRate = getAverageHashrateGHs(stats, age);
                 const SMOOTHING_FACTOR = 0.3; // Adjust between 0.1 (more smooth) to 0.5 (more responsive)
                 if (stats.hashrate != 0) {
