@@ -17,6 +17,7 @@ import fs from 'fs';
 import path from 'path';
 import { stringifyHashrate } from './src/stratum/utils';
 import { WINDOW_SIZE } from './src/stratum/sharesManager';
+import logger from './src/monitoring/datadog';
 
 export const poolStartTime = Date.now();
 const monitoring = new Monitoring();
@@ -180,38 +181,64 @@ export const pool = new Pool(treasury, stratums);
 
 // Function to calculate and update pool hash rate
 export function calculatePoolHashrate(updatePool = true) {
+  monitoring.debug(`Main: Starting calculatePoolHashrate (updatePool: ${updatePool})`);
+  
   const addressHashrates: Map<string, number> = new Map();
   let poolHashRate = 0;
+  let totalMiners = 0;
+  let totalWorkers = 0;
 
-  stratums.forEach(stratum => {
-    stratum.sharesManager.getMiners().forEach((minerData, address) => {
+  monitoring.debug(`Main: Processing ${stratums.length} stratums`);
+
+  stratums.forEach((stratum, stratumIndex) => {
+    const miners = stratum.sharesManager.getMiners();
+    monitoring.debug(`Main: Stratum ${stratumIndex}: Processing ${miners.size} miners`);
+    
+    miners.forEach((minerData, address) => {
       let rate = 0;
-      minerData.workerStats.forEach(stats => {
+      const workerCount = minerData.workerStats.size;
+      totalWorkers += workerCount;
+      
+      monitoring.debug(`Main: Processing miner ${address} with ${workerCount} workers`);
+      
+      minerData.workerStats.forEach((stats, workerId) => {
+        logger.warn('poolmetrics stats: ', stats);
         rate += stats.hashrate;
+        monitoring.debug(`Main: Worker ${workerId} for ${address}: hashrate = ${stats.hashrate}`);
       });
 
       // Aggregate rate per wallet address
       const prevRate = addressHashrates.get(address) || 0;
       const newRate = prevRate + rate;
       addressHashrates.set(address, newRate);
+      
+      monitoring.debug(`Main: Miner ${address}: individual rate = ${rate}, total rate = ${newRate}`);
+      totalMiners++;
     });
   });
+
+  monitoring.debug(`Main: Processed ${totalMiners} miners with ${totalWorkers} total workers`);
 
   // Update metrics and compute pool total
   addressHashrates.forEach((rate, address) => {
     metrics.updateGaugeValue(minerHashRateGauge, [address], rate);
     poolHashRate += rate;
+    monitoring.debug(`Main: Updated metrics for ${address}: ${rate} hashrate`);
   });
+
+  const rateStr = stringifyHashrate(poolHashRate);
+  monitoring.debug(`Main: Calculated total pool hashrate: ${rateStr} (${poolHashRate} raw)`);
 
   // Update pool hashrate only for estimate values and on regular interval
   if (updatePool) {
-    const rateStr = stringifyHashrate(poolHashRate);
     metrics.updateGaugeValue(
       poolHashRateGauge,
       ['pool', stratums[0].sharesManager.poolAddress],
       poolHashRate
     );
-    monitoring.log(`Main: Total pool hash rate updated to ${rateStr}`);
+    monitoring.log(`Main: Total pool hash rate updated to ${rateStr} (${totalMiners} miners, ${totalWorkers} workers)`);
+  } else {
+    monitoring.debug(`Main: Pool hashrate calculation completed (no update): ${rateStr}`);
   }
 }
 
