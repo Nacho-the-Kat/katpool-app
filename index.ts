@@ -243,7 +243,7 @@ export function calculatePoolHashrate(updatePool = true) {
 }
 
 // Set interval for subsequent updates
-setInterval(calculatePoolHashrate, WINDOW_SIZE);
+setInterval(calculatePoolHashrate, 60000);
 
 // Now you have an array of `pools` for each stratum configuration
 monitoring.log(`Main: ✅ Created ${stratums.length} stratums.`);
