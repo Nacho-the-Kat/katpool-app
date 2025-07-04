@@ -192,19 +192,19 @@ export function calculatePoolHashrate(updatePool = true) {
 
   stratums.forEach((stratum, stratumIndex) => {
     const miners = stratum.sharesManager.getMiners();
-    monitoring.debug(`Main: Stratum ${stratumIndex}: Processing ${miners.size} miners`);
+    logger.warn(`Main: Stratum ${stratumIndex}: Processing ${miners.size} miners`);
     
     miners.forEach((minerData, address) => {
       let rate = 0;
       const workerCount = minerData.workerStats.size;
       totalWorkers += workerCount;
       
-      monitoring.debug(`Main: Processing miner ${address} with ${workerCount} workers`);
+      logger.warn(`Main: Processing miner ${address} with ${workerCount} workers`);
       
       minerData.workerStats.forEach((stats, workerId) => {
         logger.warn('poolmetrics stats: ', stats);
         rate += stats.hashrate;
-        monitoring.debug(`Main: Worker ${workerId} for ${address}: hashrate = ${stats.hashrate}`);
+        logger.warn(`Main: Worker ${workerId} for ${address}: hashrate = ${stats.hashrate}`);
       });
 
       // Aggregate rate per wallet address
@@ -212,12 +212,12 @@ export function calculatePoolHashrate(updatePool = true) {
       const newRate = prevRate + rate;
       addressHashrates.set(address, newRate);
       
-      monitoring.debug(`Main: Miner ${address}: individual rate = ${rate}, total rate = ${newRate}`);
+      logger.warn(`Main: Miner ${address}: individual rate = ${rate}, total rate = ${newRate}`);
       totalMiners++;
     });
   });
 
-  monitoring.debug(`Main: Processed ${totalMiners} miners with ${totalWorkers} total workers`);
+  logger.warn(`Main: Processed ${totalMiners} miners with ${totalWorkers} total workers`);
 
   // Update metrics and compute pool total
   addressHashrates.forEach((rate, address) => {
