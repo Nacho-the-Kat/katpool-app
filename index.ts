@@ -182,6 +182,7 @@ function calculatePoolHashrate() {
     stratum.sharesManager.getMiners().forEach((minerData, address) => {
       let rate = 0;
       minerData.workerStats.forEach(stats => {
+        monitoring.log(`stats.hashrate: ${stats.hashrate}`);
         rate += stats.hashrate;
       });
 
@@ -195,6 +196,8 @@ function calculatePoolHashrate() {
   // Update metrics and compute pool total
   addressHashrates.forEach((rate, address) => {
     metrics.updateGaugeValue(minerHashRateGauge, [address], rate);
+    monitoring.log(`minerHashRateGauge address: ${address}`);
+    monitoring.log(`minerHashRateGauge rate: ${rate}`);
     poolHashRate += rate;
   });
 
