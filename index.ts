@@ -47,10 +47,12 @@ process.on('exit', code => {
 });
 
 process.on('uncaughtException', error => {
+  checkRPCTimeoutError(error);
   monitoring.error(`Main: Uncaught Exception: `, error);
 });
 
 process.on('unhandledRejection', error => {
+  checkRPCTimeoutError(error);
   monitoring.error(`Main: Unhandled Rejection: `, error);
 });
 
@@ -61,6 +63,27 @@ if (process.env.DEBUG == '1') {
 
 const RPC_RETRY_INTERVAL = 5 * 100; // 500 MILI SECONDS
 const RPC_TIMEOUT = 24 * 60 * 60 * 1000; // 24 HOURS
+
+export async function checkRPCTimeoutError(error: unknown) {
+  const isTimeoutError = (err: unknown): err is Error => {
+    return err instanceof Error && err.message.includes('RPC request timeout');
+  };
+
+  if (isTimeoutError(error)) {
+    await rpc.disconnect();
+    monitoring.error(`Main: RPC disconnected due to timeout`);
+    try {
+      await rpc.connect({
+        retryInterval: RPC_RETRY_INTERVAL, // timeinterval for reconnection
+        timeoutDuration: RPC_TIMEOUT, // rpc timeout duration
+        strategy: ConnectStrategy.Retry, // retry strategy for disconnection
+      });
+    } catch (err) {
+      monitoring.error(`Main: Error while connecting to rpc url : ${rpc.url} Error: ${err}`);
+    }
+    monitoring.debug(`Main: RPC reconnected after timeout`);
+  }
+}
 
 // Send config.json to API server
 export async function sendConfig() {
