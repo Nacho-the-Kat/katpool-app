@@ -140,12 +140,12 @@ process.on('exit', code => {
 });
 
 process.on('uncaughtException', error => {
-  checkRPCTimeoutError(error);
+  await checkRPCTimeoutError(error);
   monitoring.error(`Main: Uncaught Exception: `, error);
 });
 
 process.on('unhandledRejection', error => {
-  checkRPCTimeoutError(error);
+  await checkRPCTimeoutError(error);
   monitoring.error(`Main: Unhandled Rejection: `, error);
 });
 
