@@ -24,11 +24,104 @@ monitoring.log(`Main: Pool started at ${new Date(poolStartTime).toISOString()}`)
 
 let treasury: Treasury;
 
+let rpcUrl = 'kaspad:17110';
+if (config.network === 'testnet-10') {
+  rpcUrl = 'kaspad-test10:17210';
+}
+
+monitoring.log(`Main: rpc url: ${rpcUrl}`);
+
+// Global reconnection state management
+class RpcConnectionManager {
+  private isReconnecting: boolean = false;
+  private reconnectPromise: Promise<void> | null = null;
+  private rpcClient: RpcClient;
+
+  constructor() {
+    this.rpcClient = new RpcClient({
+      url: rpcUrl, // This is WRPC (borsh) end point
+      // resolver: new Resolver(),
+      encoding: Encoding.Borsh,
+      networkId: config.network,
+    });
+  }
+
+  setRpcClient(client: RpcClient) {
+    this.rpcClient = client;
+  }
+
+  getRpcClient(): RpcClient {
+    return this.rpcClient;
+  }
+
+  isCurrentlyReconnecting(): boolean {
+    return this.isReconnecting;
+  }
+
+  rpcConnect() {
+    if (!this.rpcClient) {
+      throw new Error('RPC client not set');
+    }
+
+    return this.rpcClient.connect({
+      retryInterval: RPC_RETRY_INTERVAL,
+      timeoutDuration: RPC_TIMEOUT,
+      strategy: ConnectStrategy.Retry,
+    });
+  }
+
+  async handleReconnection(): Promise<void> {
+    // If already reconnecting, wait for the existing reconnection to complete
+    if (this.isReconnecting && this.reconnectPromise) {
+      monitoring.debug('Main: Reconnection already in progress, waiting for completion...');
+      await this.reconnectPromise;
+      return;
+    }
+
+    // If not reconnecting, start the reconnection process
+    if (!this.isReconnecting) {
+      this.isReconnecting = true;
+      this.reconnectPromise = this.performReconnection();
+
+      try {
+        await this.reconnectPromise;
+      } finally {
+        this.isReconnecting = false;
+        this.reconnectPromise = null;
+      }
+    }
+  }
+
+  private async performReconnection(): Promise<void> {
+    if (!this.rpcClient) {
+      throw new Error('RPC client not set');
+    }
+
+    try {
+      await this.rpcClient.disconnect();
+      monitoring.error(`Main: RPC disconnected due to timeout`);
+
+      await this.rpcConnect();
+
+      monitoring.debug(`Main: RPC reconnected after timeout`);
+    } catch (err) {
+      monitoring.error(
+        `Main: Error while reconnecting to rpc url: ${this.rpcClient.url} Error: ${err}`
+      );
+      throw err;
+    }
+  }
+}
+
+const rpcConnectionManager = new RpcConnectionManager();
+
 async function shutdown() {
   monitoring.log('\n\nMain: Gracefully shutting down the pool...');
   try {
-    await rpc.unsubscribeBlockAdded();
-    await rpc.unsubscribeNewBlockTemplate();
+    if (rpc) {
+      await rpc.unsubscribeBlockAdded();
+      await rpc.unsubscribeNewBlockTemplate();
+    }
     if (treasury) {
       await treasury.unregisterProcessor();
     }
@@ -61,7 +154,7 @@ if (process.env.DEBUG == '1') {
   DEBUG = 1;
 }
 
-const RPC_RETRY_INTERVAL = 5 * 100; // 500 MILI SECONDS
+const RPC_RETRY_INTERVAL = 5 * 100; // 500 MILLISECONDS
 const RPC_TIMEOUT = 24 * 60 * 60 * 1000; // 24 HOURS
 
 export async function checkRPCTimeoutError(error: unknown) {
@@ -70,16 +163,11 @@ export async function checkRPCTimeoutError(error: unknown) {
   };
 
   if (isTimeoutError(error)) {
-    await rpc.disconnect();
-    monitoring.error(`Main: RPC disconnected due to timeout`);
+    // Use the global reconnection manager
     try {
-      await rpc.connect({
-        retryInterval: RPC_RETRY_INTERVAL, // timeinterval for reconnection
-        timeoutDuration: RPC_TIMEOUT, // rpc timeout duration
-        strategy: ConnectStrategy.Retry, // retry strategy for disconnection
-      });
+      await rpcConnectionManager.handleReconnection();
     } catch (err) {
-      monitoring.error(`Main: Error while connecting to rpc url : ${rpc.url} Error: ${err}`);
+      monitoring.error(`Main: Failed to reconnect after timeout: ${err}`);
     }
     monitoring.debug(`Main: RPC reconnected after timeout`);
   }
@@ -113,19 +201,7 @@ dotenv.config();
 
 monitoring.log(`Main: network: ${config.network}`);
 
-let rpcUrl = 'kaspad:17110';
-if (config.network === 'testnet-10') {
-  rpcUrl = 'kaspad-test10:17210';
-}
-
-monitoring.log(`Main: rpc url: ${rpcUrl}`);
-
-const rpc = new RpcClient({
-  url: rpcUrl, // This is WRPC (borsh) end point
-  // resolver: new Resolver(),
-  encoding: Encoding.Borsh,
-  networkId: config.network,
-});
+const rpc = rpcConnectionManager.getRpcClient();
 
 try {
   rpc.addEventListener('connect', async () => {
@@ -143,11 +219,7 @@ rpc.addEventListener('disconnect', async event => {
 });
 
 try {
-  await rpc.connect({
-    retryInterval: RPC_RETRY_INTERVAL, // timeinterval for reconnection
-    timeoutDuration: RPC_TIMEOUT, // rpc timeout duration
-    strategy: ConnectStrategy.Retry, // retry strategy for disconnection
-  });
+  await rpcConnectionManager.rpcConnect();
 } catch (error) {
   monitoring.error(`Main: Error while connecting to rpc url : ${rpc.url} Error: `, error);
 }
@@ -197,6 +269,9 @@ for (const stratumConfig of config.stratum) {
 treasury = new Treasury(rpc, serverInfo.networkId, address, config.treasury.fee);
 
 export const pool = new Pool(treasury, stratums);
+
+// Export the connection manager for use in Templates
+export { rpcConnectionManager };
 
 // Function to calculate and update pool hash rate
 function calculatePoolHashrate() {

@@ -2,7 +2,7 @@ import type { IBlock, RpcClient, IRawHeader, ISubmitBlockResponse } from '../../
 import { Header, PoW } from '../../../wasm/kaspa';
 import Jobs from './jobs';
 import Monitoring from '../../monitoring';
-import { checkRPCTimeoutError, DEBUG } from '../../../index';
+import { DEBUG } from '../../../index';
 import Database from '../../pool/database';
 import redis, { type RedisClientType } from 'redis';
 import config from '../../../config/config.json';
@@ -97,7 +97,6 @@ export default class Templates {
       });
     } catch (error) {
       const stack = error instanceof Error ? error.stack : undefined;
-      checkRPCTimeoutError(error);
       await logger.error('after rpc.submitBlock', {
         traceId,
         error,
