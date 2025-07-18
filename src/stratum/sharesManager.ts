@@ -274,6 +274,52 @@ export class SharesManager {
   }
 
   startStatsThread() {
+    const STALE_SOCKET_TIMEOUT = 90 * 1000;
+    const GENERAL_INTERVAL = 30 * 1000;
+
+    setInterval(() => {
+      const now = Date.now();
+      const staleSockets: Socket<Miner>[] = [];
+
+      this.miners.forEach((minerData, address) => {
+        minerData.sockets.forEach(socket => {
+          let lastSeen = socket.data.connectedAt;
+
+          // Find the most recent activity from any worker on this socket
+          // socket.data.workers.forEach(worker => {
+          //   const stats = minerData.workerStats.get(worker.name);
+          //   if (stats && stats.lastShare) {
+          //     const age = now - lastSeen;
+          //     if (age <= WINDOW_SIZE && age > 0) {
+          //       const workerRate = getAverageHashrateGHs(stats, age);
+          //       this.monitoring.debug(
+          //         `SharesManager ${this.port}: Added estimated hashrate for ${worker.name} ${address} as ${stringifyHashrate(workerRate)} – connected ${Math.round(age / 1000)}s ago.`
+          //       );
+          //       // Update hashrate metrics
+          //       stats.hashrate = workerRate;
+          //       metrics.updateGaugeValue(workerHashRateGauge, [worker.name, address], workerRate);
+          //     }
+          //     lastSeen = Math.max(lastSeen, stats.lastShare);
+          //   }
+          // });
+
+          const age = now - lastSeen;
+          if (age > STALE_SOCKET_TIMEOUT) {
+            this.monitoring.debug(
+              `SharesManager ${this.port}: Marking stale socket from ${address} after ${Math.round(age / 1000)}s`
+            );
+            staleSockets.push(socket);
+          }
+        });
+      });
+
+      // Clean up stale sockets
+      staleSockets.forEach(socket => {
+        socket.end();
+      });
+    }, GENERAL_INTERVAL);
+
+    // Stats reporting (simplified - no inline cleanup)
     const start = Date.now();
     setInterval(() => {
       let str =
@@ -287,27 +333,10 @@ export class SharesManager {
       this.miners.forEach((minerData, address) => {
         let rate = 0;
         minerData.workerStats.forEach((stats, workerName) => {
-          // Update active status metrics
-          let workerRate = 0;
-          const status = this.checkWorkerStatus(stats);
-          metrics.updateGaugeValue(
-            activeMinerGuage,
-            [workerName, address, stats.asicType, this.port.toString()],
-            status
-          );
-          if (status) {
-            workerRate = getAverageHashrateGHs(stats);
-            debugHashrateCalculation(stats, address, workerRate);
-          } else {
-            logger.warn(
-              `SharesManager ${this.port}: Worker ${address}.${workerName} is inactive, setting hashrate to 0`
-            );
-            workerRate = 0;
-          }
+          const workerRate = getAverageHashrateGHs(stats);
           rate += workerRate;
 
-          // Update hashrate - in metrics and workerStats
-          stats.hashrate = workerRate;
+          // Update metrics
           metrics.updateGaugeValue(workerHashRateGauge, [workerName, address], workerRate);
 
           const rateStr = stringifyHashrate(workerRate);
@@ -318,40 +347,12 @@ export class SharesManager {
             ` ${stats.workerName.padEnd(15)}| ${rateStr.padEnd(14)} | ${ratioStr.padEnd(14)} | ${stats.blocksFound.toString().padEnd(12)} | ${uptime}s`
           );
 
-          try {
-            if (status === 0) {
-              let found = false;
-              this.monitoring.debug(`\nSharesManager ${this.port}: MinerData before - `);
-              this.logData(minerData);
-              this.monitoring.debug(
-                `SharesManager ${this.port}: Status is inactive for worker: ${workerName}, address: ${address}`
-              );
-              minerData.workerStats.delete(workerName);
-              this.monitoring.debug(
-                `SharesManager ${this.port}: Deleted workerstats: ${workerName}, address: ${address}`
-              );
-              let socket: Socket<any>;
-              minerData.sockets.forEach(skt => {
-                if (skt.data.workers.has(workerName) && !found) {
-                  socket = skt;
-                  this.monitoring.debug(
-                    `SharesManager ${this.port}: Socket found for deletion: ${workerName}, address: ${address}`
-                  );
-                  found = true;
-                }
-              });
-              minerData.sockets.delete(socket!);
-              this.monitoring.debug(
-                `SharesManager ${this.port}: Deleted socket for : ${workerName}, address: ${address}`
-              );
-              this.monitoring.debug(`\nSharesManager ${this.port}: MinerData after - `);
-              this.logData(minerData);
-            }
-          } catch (error) {
-            this.monitoring.error(
-              `SharesManager ${this.port}: Could not delete inactive worker: ${workerName}, address: ${address}`
-            );
-          }
+          // Update worker's hashrate in workerStats
+          stats.hashrate = workerRate;
+
+          // Update active status
+          const status = this.checkWorkerStatus(stats);
+          metrics.updateGaugeValue(activeMinerGuage, [workerName, address, stats.asicType], status);
         });
         totalRate += rate;
       });
