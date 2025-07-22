@@ -139,14 +139,17 @@ process.on('exit', code => {
   monitoring.log(`Main: 🛑 Process is exiting with code: ${code}`);
 });
 
-process.on('uncaughtException', error => {
+async function handleError(source: string, error: unknown) {
   await checkRPCTimeoutError(error);
-  monitoring.error(`Main: Uncaught Exception: `, error);
+  monitoring.error(`Main: ${source}: ${error}`);
+}
+
+process.on('uncaughtException', error => {
+  handleError('Uncaught Exception', error);
 });
 
 process.on('unhandledRejection', error => {
-  await checkRPCTimeoutError(error);
-  monitoring.error(`Main: Unhandled Rejection: `, error);
+  handleError('Unhandled Rejection', error);
 });
 
 export let DEBUG = 0;
