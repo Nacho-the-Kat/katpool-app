@@ -110,12 +110,14 @@ export default class Stratum extends EventEmitter {
         // );
         logger.warn('miner-socket-state-detected', getSocketLogData(socket));
         this.subscriptors.delete(socket);
-        // try {
-        //   socket.data.closeReason = 'Stratum: socket.readyState === "closed"';
-        //   socket.end();
-        // } catch (error) {
-        //   this.monitoring.error(`Stratum ${this.port}: Error deleting socket: `, error);
-        // }
+        try {
+          const msg = `Stratum ${this.port}: socket.readyState === "closed"`;
+          socket.data.closeReason = msg;
+          socket.end();
+          logger.warn(`SocketEnd, ${msg}`, getSocketLogData(socket));
+        } catch (error) {
+          this.monitoring.error(`Stratum ${this.port}: Error deleting socket: `, error);
+        }
       } else {
         socket.data.workers.forEach((worker, _) => {
           if (this.varDiff) {

@@ -65,8 +65,9 @@ Note: If there are changes to the system design, the image above can be updated 
 | **katpool-db**         | PostgreSQL database instance                          |
 | **katpool-db-migrate** | Database schema migration handler                     |
 | **katpool-backup**     | Database backup service with Google Drive integration |
-| **katpool-monitor**    | Prometheus metrics and REST API service               |
-| **prometheus**         | Metrics visualization and monitoring                  |
+| **katpool-monitor**    | VictoriaMetrics-backed metrics and REST API service   |
+| **victoria-metrics**   | Metrics visualization and monitoring                  |
+| **vmagent**            | Stores metrics in VictoriaMetrics                     |
 | **go-app**             | Block template fetcher via gRPC                       |
 | **redis**              | Message broker for block templates                    |
 | **katpool-payment**    | Payment processing service                            |
@@ -100,11 +101,11 @@ Note: If there are changes to the system design, the image above can be updated 
 
 Create the following required files and directories:
 
-- `prometheus.yml` - Prometheus scrape configuration
+- `vmagent.yml` - VMAgent scrape configuration
 - `init.sql` - Database initialization script
 - `migrate.sql` - Database migration script
 - `nginx.conf` - Nginx configuration
-- `config/` - Configuration directory
+- `config/config.json` - This configuration file is **mounted via** a **volume** in the current setup, so **any changes** made to it **do not require building** a **new Docker image**.
 - `wasm/` - WASM SDK folder
 - `.env` - Environment variables (copy from `.env.sample`)
 
@@ -119,7 +120,7 @@ Create the following required files and directories:
 2. All backend services share the same configuration file
 3. **Security Note**: In future versions, private keys should be isolated to payment service only
 
-**Important**: Update `prometheus.yml` targets to match your deployment.
+**Important**: Update `vmagent.yml` targets to match your deployment.
 
 </details>
 
@@ -278,7 +279,8 @@ Ensure all services are running before starting the application:
 ✅ **Supporting Services:**
 
 - `katpool-monitor` - Metrics and APIs
-- `prometheus` - Monitoring
+- `Victoria-Metrics` - Monitoring
+- `vmagent` - For storing metrics to VictoriaMetrics
 - `nginx` - Reverse proxy
 
 </details>
@@ -290,12 +292,12 @@ Ensure all services are running before starting the application:
 
 After 10 minutes of operation, the following endpoints will be available:
 
-| Endpoint                            | Description                  |
-| ----------------------------------- | ---------------------------- |
-| `http://<pool-server>:8080`         | Prometheus metrics interface |
-| `http://<pool-server>:8080/config`  | Pool configuration           |
-| `http://<pool-server>:8080/balance` | Miner balances               |
-| `http://<pool-server>:8080/total`   | Total rewards distributed    |
+| Endpoint                            | Description               |
+| ----------------------------------- | ------------------------- |
+| `http://<pool-server>:8080`         | VictoriaMetrics interface |
+| `http://<pool-server>:8080/config`  | Pool configuration        |
+| `http://<pool-server>:8080/balance` | Miner balances            |
+| `http://<pool-server>:8080/total`   | Total rewards distributed |
 
 </details>
 
