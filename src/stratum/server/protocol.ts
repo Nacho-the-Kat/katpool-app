@@ -1,4 +1,5 @@
 import Monitoring from '../../monitoring';
+import logger from '../../monitoring/datadog';
 
 const monitoring = new Monitoring();
 
@@ -94,6 +95,15 @@ export function parseMessage(message: string, port: number) {
 
     return parsedMessage;
   } catch (error) {
+    let message = '';
+    if (error instanceof Error) {
+      message += error.stack ? `${error.stack}` : `${error.message}`;
+    } else if (error !== undefined && error !== null) {
+      message += `${String(error)}`;
+    }
+    logger.error('JSON parse failed:', {
+      message,
+    });
     // monitoring.error(`protocol ${port}: JSON parse failed: ${message.slice(0, 100)} - `, error);
     return undefined;
   }
