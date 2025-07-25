@@ -3,6 +3,7 @@ import PQueue from 'p-queue';
 import Monitoring from '../monitoring';
 import express from 'express';
 import client from 'prom-client';
+import { PROMETHEUS_METRICS_SERVER } from '../..';
 import { poolStartTime } from '../..';
 import { getServerStatus, serverUptime } from '../shared/heartbeat';
 import JsonBig from 'json-bigint';
@@ -114,8 +115,8 @@ export function startMetricsServer() {
     });
   });
 
-  app.listen(9999, () => {
-    monitoring.log('Metrics server running at http://localhost:9999');
+  app.listen(PROMETHEUS_METRICS_SERVER, () => {
+    monitoring.log(`Metrics server running at http://localhost:${PROMETHEUS_METRICS_SERVER}`);
   });
 }
 

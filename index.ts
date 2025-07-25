@@ -16,7 +16,11 @@ import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
 import { stringifyHashrate } from './src/stratum/utils';
+import { server } from './src/user';
 import { WINDOW_SIZE } from './src/stratum/sharesManager';
+
+export const OAUTH_SERVER_PORT = 1818;
+export const PROMETHEUS_METRICS_SERVER = 9999;
 
 export const poolStartTime = Date.now();
 const monitoring = new Monitoring();
@@ -32,6 +36,10 @@ async function shutdown() {
     if (treasury) {
       await treasury.unregisterProcessor();
     }
+    server.close(() => {
+      monitoring.log(`Main: Server on port ${OAUTH_SERVER_PORT} closed`);
+      process.exit(0);
+    });
   } catch (error) {
     monitoring.error(`Main: Removing and unsubscribing events: `, error);
   }
@@ -57,6 +65,22 @@ process.on('unhandledRejection', error => {
 export let DEBUG = 0;
 if (process.env.DEBUG == '1') {
   DEBUG = 1;
+}
+
+if (!process.env.UPHOLD_CLIENT_ID) {
+  throw new Error('Environment variable UPHOLD_CLIENT_ID is not set.');
+}
+if (!process.env.UPHOLD_CLIENT_SECRET) {
+  throw new Error('Environment variable UPHOLD_CLIENT_SECRET is not set.');
+}
+if (!process.env.TOKEN_ENCRYPTION_KEY) {
+  throw new Error('Environment variable TOKEN_ENCRYPTION_KEY is not set.');
+}
+if (!process.env.OAUTH_STATE) {
+  throw new Error('Environment variable OAUTH_STATE is not set.');
+}
+if (!process.env.JWT_SECRET) {
+  throw new Error('Environment variable JWT_SECRET is not set.');
 }
 
 const RPC_RETRY_INTERVAL = 5 * 100; // 500 MILI SECONDS
