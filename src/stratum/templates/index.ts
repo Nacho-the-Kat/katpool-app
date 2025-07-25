@@ -2,11 +2,11 @@ import type { IBlock, RpcClient, IRawHeader, ISubmitBlockResponse } from '../../
 import { Header, PoW } from '../../../wasm/kaspa';
 import Jobs from './jobs';
 import Monitoring from '../../monitoring';
-import { DEBUG } from '../../../index';
 import Database from '../../pool/database';
 import redis, { type RedisClientType } from 'redis';
 import config from '../../../config/config.json';
 import logger from '../../monitoring/datadog';
+import { databaseUrl, DEBUG } from '../../constants';
 
 export default class Templates {
   private rpc: RpcClient;
@@ -107,7 +107,7 @@ export default class Templates {
     }
 
     if (report.report.type === 'success') {
-      const database = new Database(process.env.DATABASE_URL || '');
+      const database = new Database(databaseUrl || '');
       // The reward_block_hash and miner_reward will be updated on maturity coinbase event in pool.allocate().
       await database.addBlockDetails(
         newHash,

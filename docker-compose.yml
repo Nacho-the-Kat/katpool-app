@@ -204,6 +204,7 @@ services:
       - ./backup/google-credentials.json:/app/google-credentials.json
       - ./src/monitoring:/src/monitoring
       - ./src/cron-schedule.ts:/src/cron-schedule.ts
+      - ./src/constants:/src/constants
     networks:
       - backend
     restart: always

@@ -2,14 +2,15 @@ import { EventEmitter } from 'events';
 import Monitoring from '../monitoring';
 import { UtxoProcessor, UtxoContext, type RpcClient } from '../../wasm/kaspa';
 import Database from '../pool/database';
-import { DEBUG, pool } from '../..';
+import { pool } from '../..';
+import { databaseUrl, DEBUG } from '../constants';
 
 const startTime = BigInt(Date.now());
 
 UtxoProcessor.setCoinbaseTransactionMaturityDAA('mainnet', 1000n);
 UtxoProcessor.setCoinbaseTransactionMaturityDAA('testnet-10', 1000n);
 
-const db = new Database(process.env.DATABASE_URL || '');
+const db = new Database(databaseUrl || '');
 
 export default class Treasury extends EventEmitter {
   address: string;

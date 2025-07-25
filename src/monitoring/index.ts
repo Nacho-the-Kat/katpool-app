@@ -6,6 +6,7 @@ import chalk from 'chalk';
 import fs from 'fs';
 import path from 'path';
 import datadogLogger from './datadog';
+import { DEBUG } from '../constants';
 
 interface LogJobData {
   level: 'DEBUG' | 'ERROR' | 'INFO';
@@ -38,7 +39,7 @@ export default class Monitoring {
     });
 
     this.logQueue = new PQueue({ concurrency: 1 });
-    this.debugEnabled = process.env.DEBUG?.trim() === '1';
+    this.debugEnabled = DEBUG === 1;
 
     this.logger = winston.createLogger({
       level: this.debugEnabled ? 'debug' : 'info',

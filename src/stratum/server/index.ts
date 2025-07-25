@@ -1,30 +1,11 @@
 import type { Socket, TCPSocketListener } from 'bun';
-import { parseMessage, StratumError, type Request, type Response } from './protocol';
-import { Encoding } from '../templates/jobs/encoding';
+import { parseMessage, StratumError, type Response } from './protocol';
 import Monitoring from '../../monitoring';
 import type { SharesManager } from '../sharesManager';
 import { markServerUp, updateMinerActivity } from '../../shared/heartbeat';
 import logger from '../../monitoring/datadog';
 import { getSocketLogData } from '../utils';
-
-export type Worker = {
-  address: string;
-  name: string;
-};
-
-export type Miner = {
-  closeReason?: string;
-  difficulty: number;
-  extraNonce: string;
-  workers: Map<string, Worker>;
-  encoding: Encoding;
-  asicType: string;
-  cachedBytes: string;
-  connectedAt: number;
-  port: number;
-};
-
-type MessageCallback = (socket: Socket<Miner>, request: Request) => Promise<Response>;
+import { Encoding, type MessageCallback, type Miner } from '../../types';
 
 export default class Server {
   socket: TCPSocketListener<Miner>;
@@ -32,7 +13,6 @@ export default class Server {
   private onMessage: MessageCallback;
   private monitoring: Monitoring;
   private port: number;
-  private sharesManager: SharesManager;
 
   constructor(
     port: number,
@@ -44,7 +24,6 @@ export default class Server {
     this.difficulty = difficulty;
     this.onMessage = onMessage;
     this.port = port;
-    this.sharesManager = sharesManager;
 
     this.socket = Bun.listen({
       hostname: '0.0.0.0',

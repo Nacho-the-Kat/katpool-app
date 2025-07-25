@@ -3,13 +3,14 @@ import type Stratum from '../stratum';
 import Database from './database';
 import Monitoring from '../monitoring';
 import { sompiToKaspaStringWithSuffix } from '../../wasm/kaspa';
-import { DEBUG, sendConfig } from '../../index';
-import { type Contribution } from '../stratum/sharesManager';
+import { sendConfig } from '../../index';
 import axios, { AxiosError } from 'axios';
 import config from '../../config/config.json';
 import axiosRetry from 'axios-retry';
 import JsonBig from 'json-bigint';
 import logger from '../monitoring/datadog';
+import type { Contribution } from '../types';
+import { databaseUrl, DEBUG, getNetworkConfig } from '../constants';
 
 const monitoring = new Monitoring();
 
@@ -30,11 +31,7 @@ axiosRetry(axios, {
   },
 });
 
-let KASPA_BASE_URL = 'https://api.kaspa.org';
-
-if (config.network === 'testnet-10') {
-  KASPA_BASE_URL = 'https://api-tn10.kaspa.org';
-}
+const { apiBaseUrl: KASPA_BASE_URL } = getNetworkConfig(config.network);
 
 export default class Pool {
   private treasury: Treasury;
@@ -47,11 +44,6 @@ export default class Pool {
   constructor(treasury: Treasury, stratum: Stratum[]) {
     this.treasury = treasury;
     this.stratum = stratum;
-
-    const databaseUrl = process.env.DATABASE_URL;
-    if (!databaseUrl) {
-      throw new Error('Environment variable DATABASE_URL is not set.');
-    }
 
     this.database = new Database(databaseUrl);
     this.monitoring = monitoring;
@@ -108,7 +100,7 @@ export default class Pool {
     let totalWork = 0;
 
     // Get all shares since for the current maturity event.
-    const database = new Database(process.env.DATABASE_URL || '');
+    const database = new Database(databaseUrl || '');
     let block_hash = '',
       daaScoreF = '0';
     if (reward_block_hash != '') {
