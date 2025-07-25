@@ -96,11 +96,41 @@ export default class Templates {
         allowNonDAABlocks: false,
       });
     } catch (error) {
+      const h = template.header;
+      const MAX_U64 = BigInt('18446744073709551615'); // u_64 MAX
+      const MIN_U64 = BigInt(0);
+
+      const isU64 = (val: bigint) => val >= MIN_U64 && val <= MAX_U64;
+
+      const fields: Record<string, bigint | string> = {
+        nonce: h.nonce,
+        timestamp: h.timestamp,
+        daaScore: h.daaScore,
+        blueScore: h.blueScore,
+        blueWork: typeof h.blueWork === 'bigint' ? h.blueWork : `hex:${h.blueWork}`,
+      };
+
+      const outOfRangeFields: Record<string, string> = {};
+
+      for (const [key, val] of Object.entries(fields)) {
+        if (typeof val === 'bigint') {
+          const valStr = val.toString();
+          if (!isU64(val)) {
+            outOfRangeFields[`u64_error_${key}`] = valStr; // 👈 prefix added here
+          } else {
+            this.monitoring.debug(`[Valid] ${key}: ${valStr}`);
+          }
+        } else {
+          this.monitoring.debug(`[Hex or String] ${key}: ${val}`);
+        }
+      }
+
       const stack = error instanceof Error ? error.stack : undefined;
       await logger.error('after rpc.submitBlock', {
         traceId,
         error,
         stack,
+        ...outOfRangeFields,
       });
       this.monitoring.debug(
         `Templates: ERROR - Block submit : ${error} - ${stack ? ' - ' + stack : ''}`
