@@ -1,0 +1,101 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: katpool-kaspad
+  namespace: katpool
+  labels:
+    app: katpool-kaspad
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: katpool-kaspad
+  template:
+    metadata:
+      labels:
+        app: katpool-kaspad
+    spec:
+      containers:
+      - name: katpool-kaspad
+        image: supertypo/rusty-kaspad:v1.0.1
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 16111
+          name: kaspad-16111
+        - containerPort: 16110
+          name: kaspad-16110
+        - containerPort: 17110
+          name: kaspad-17110
+        - containerPort: 18110
+          name: kaspad-18110
+        volumeMounts:
+        - name: kaspad-data
+          mountPath: /app/data
+        command:
+        - kaspad
+        - --yes
+        - --nologfiles
+        - --disable-upnp
+        - --utxoindex
+        - --rpclisten=0.0.0.0:16110
+        - --rpclisten-borsh=0.0.0.0:17110
+        - --rpclisten-json=0.0.0.0:18110
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "500m"
+          limits:
+            memory: "4Gi"
+            cpu: "1000m"
+        livenessProbe:
+          tcpSocket:
+            port: 16110
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 5
+        readinessProbe:
+          tcpSocket:
+            port: 16110
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+      volumes:
+      - name: kaspad-data
+        persistentVolumeClaim:
+          claimName: kaspad-data-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: katpool-kaspad
+  namespace: katpool
+spec:
+  selector:
+    app: katpool-kaspad
+  ports:
+  - port: 16111
+    targetPort: 16111
+    name: kaspad-16111
+  - port: 16110
+    targetPort: 16110
+    name: kaspad-16110
+  - port: 17110
+    targetPort: 17110
+    name: kaspad-17110
+  - port: 18110
+    targetPort: 18110
+    name: kaspad-18110
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: kaspad-data-pvc
+  namespace: katpool
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 500Gi

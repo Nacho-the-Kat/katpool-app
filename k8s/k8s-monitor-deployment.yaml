@@ -28,6 +28,16 @@ spec:
         - name: config-volume
           mountPath: /app/config
         env:
+        - name: DATABASE_URL_MONITOR
+          valueFrom:
+            secretKeyRef:
+              name: katpool-secrets
+              key: DATABASE_URL_MONITOR
+        - name: DEBUG
+          valueFrom:
+            secretKeyRef:
+              name: katpool-secrets
+              key: DEBUG
         - name: POSTGRES_USER
           valueFrom:
             secretKeyRef:
@@ -48,6 +58,38 @@ spec:
             secretKeyRef:
               name: katpool-secrets
               key: POSTGRES_HOSTNAME
+        - name: POSTGRES_PORT
+          value: "5432"
+        - name: TREASURY_PRIVATE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: katpool-secrets
+              key: TREASURY_PRIVATE_KEY
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: katpool-secrets
+              key: DATABASE_URL
+        - name: MONITOR
+          valueFrom:
+            secretKeyRef:
+              name: katpool-secrets
+              key: MONITOR
+        - name: DATADOG_LOG_URL
+          valueFrom:
+            secretKeyRef:
+              name: katpool-secrets
+              key: DATADOG_LOG_URL
+        - name: DATADOG_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: katpool-secrets
+              key: DATADOG_SECRET
+        - name: DATADOG_SERVICE_NAME
+          valueFrom:
+            secretKeyRef:
+              name: katpool-secrets
+              key: DATADOG_MONITOR_SERVICE_NAME
         resources:
           requests:
             memory: "256Mi"

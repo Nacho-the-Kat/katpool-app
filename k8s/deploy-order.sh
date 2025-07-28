@@ -40,11 +40,43 @@ kubectl apply -f k8s-monitor-deployment.yaml
 echo "⏳ Waiting for monitor to be ready..."
 kubectl wait --for=condition=ready pod -l app=katpool-monitor -n katpool --timeout=300s
 
-# 6. Deploy main application
+# 6. Deploy Victoria Metrics
+echo "📈 Deploying Victoria Metrics..."
+kubectl apply -f k8s-victoria-metrics-deployment.yaml
+
+# Wait for Victoria Metrics to be ready
+echo "⏳ Waiting for Victoria Metrics to be ready..."
+kubectl wait --for=condition=ready pod -l app=katpool-victoria-metrics -n katpool --timeout=300s
+
+# 7. Deploy VM Agent
+echo "🔍 Deploying VM Agent..."
+kubectl apply -f k8s-vmagent-deployment.yaml
+
+# Wait for VM Agent to be ready
+echo "⏳ Waiting for VM Agent to be ready..."
+kubectl wait --for=condition=ready pod -l app=katpool-vmagent -n katpool --timeout=300s
+
+# 8. Deploy Go App
+echo "🔧 Deploying Go App..."
+kubectl apply -f k8s-go-app-deployment.yaml
+
+# Wait for Go App to be ready
+echo "⏳ Waiting for Go App to be ready..."
+kubectl wait --for=condition=ready pod -l app=katpool-go-app -n katpool --timeout=300s
+
+# 9. Deploy Kaspad
+echo "⛓️  Deploying Kaspad..."
+kubectl apply -f k8s-kaspad-deployment.yaml
+
+# Wait for Kaspad to be ready
+echo "⏳ Waiting for Kaspad to be ready..."
+kubectl wait --for=condition=ready pod -l app=katpool-kaspad -n katpool --timeout=600s
+
+# 10. Deploy main application
 echo "🏗️  Deploying main application..."
 kubectl apply -f k8s-deployment.yaml
 
-# 7. Deploy service
+# 11. Deploy service
 echo "🌐 Deploying service..."
 kubectl apply -f k8s-service.yaml
 

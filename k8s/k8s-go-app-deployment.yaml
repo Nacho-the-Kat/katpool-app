@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: katpool-go-app
+  namespace: katpool
+  labels:
+    app: katpool-go-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: katpool-go-app
+  template:
+    metadata:
+      labels:
+        app: katpool-go-app
+    spec:
+      containers:
+      - name: katpool-go-app
+        image: ghcr.io/nacho-the-kat/katpool-blocktemplate-fetcher:beta-v1.0.2-main
+        imagePullPolicy: Always
+        volumeMounts:
+        - name: config-volume
+          mountPath: /app/config
+        env:
+        - name: REDIS_HOST
+          value: "redis-external"
+        - name: REDIS_PORT
+          value: "6379"
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: katpool-secrets
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: katpool-secrets
+              key: POSTGRES_PASSWORD
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef:
+              name: katpool-secrets
+              key: POSTGRES_DB
+        - name: POSTGRES_HOSTNAME
+          value: "katpool-db-external"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "200m"
+        livenessProbe:
+          tcpSocket:
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          tcpSocket:
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+      volumes:
+      - name: config-volume
+        configMap:
+          name: katpool-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: katpool-go-app
+  namespace: katpool
+spec:
+  selector:
+    app: katpool-go-app
+  ports:
+  - port: 8080
+    targetPort: 8080
+    name: go-app-8080 

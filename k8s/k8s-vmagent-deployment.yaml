@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: katpool-vmagent
+  namespace: katpool
+  labels:
+    app: katpool-vmagent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: katpool-vmagent
+  template:
+    metadata:
+      labels:
+        app: katpool-vmagent
+    spec:
+      containers:
+      - name: katpool-vmagent
+        image: victoriametrics/vmagent:v1.97.0
+        imagePullPolicy: Always
+        volumeMounts:
+        - name: vmagent-config
+          mountPath: /etc/vmagent.yml
+          subPath: vmagent.yml
+        command:
+        - '-promscrape.config=/etc/vmagent.yml'
+        - '-remoteWrite.url=http://katpool-victoria-metrics:8428/api/v1/write'
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "200m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8429
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8429
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+      volumes:
+      - name: vmagent-config
+        configMap:
+          name: vmagent-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: katpool-vmagent
+  namespace: katpool
+spec:
+  selector:
+    app: katpool-vmagent
+  ports:
+  - port: 8429
+    targetPort: 8429
+    name: vmagent-8429
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vmagent-config
+  namespace: katpool
+data:
+  vmagent.yml: |
+    global:
+      scrape_interval: 30s
+      scrape_timeout: 20s
+
+    scrape_configs:
+      - job_name: 'katpool-app'
+        scrape_interval: 60s
+        scrape_timeout: 50s
+        static_configs:
+          - targets: ['katpool-app-service:9999']
+
+      - job_name: 'katpool-monitor'
+        static_configs:
+          - targets: ['katpool-monitor:9300'] 
