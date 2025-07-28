@@ -1,0 +1,150 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: katpool-app
+  namespace: katpool
+  labels:
+    app: katpool-app
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: katpool-app
+  template:
+    metadata:
+      labels:
+        app: katpool-app
+    spec:
+      containers:
+      - name: katpool-app
+        image: ghcr.io/nacho-the-kat/katpool-app:beta-v1.0.2-main
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 1111
+          name: stratum-1111
+        - containerPort: 2222
+          name: stratum-2222
+        - containerPort: 3333
+          name: stratum-3333
+        - containerPort: 4444
+          name: stratum-4444
+        - containerPort: 5555
+          name: stratum-5555
+        - containerPort: 6666
+          name: stratum-6666
+        - containerPort: 7777
+          name: stratum-7777
+        - containerPort: 8888
+          name: stratum-8888
+        volumeMounts:
+        - name: config-volume
+          mountPath: /app/config
+        - name: logs-volume
+          mountPath: /app/katpool-app-logs
+        env:
+        - name: TREASURY_PRIVATE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: katpool-secrets
+              key: TREASURY_PRIVATE_KEY
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: katpool-secrets
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: katpool-secrets
+              key: POSTGRES_PASSWORD
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef:
+              name: katpool-secrets
+              key: POSTGRES_DB
+        - name: POSTGRES_HOSTNAME
+          valueFrom:
+            secretKeyRef:
+              name: katpool-secrets
+              key: POSTGRES_HOSTNAME
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: katpool-secrets
+              key: DATABASE_URL
+        - name: MONITOR
+          valueFrom:
+            secretKeyRef:
+              name: katpool-secrets
+              key: MONITOR
+        - name: DEBUG
+          valueFrom:
+            secretKeyRef:
+              name: katpool-secrets
+              key: DEBUG
+        - name: TELEGRAM_BOT_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: katpool-secrets
+              key: TELEGRAM_BOT_TOKEN
+        - name: DATADOG_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: katpool-secrets
+              key: DATADOG_SECRET
+        - name: DATADOG_LOG_URL
+          valueFrom:
+            secretKeyRef:
+              name: katpool-secrets
+              key: DATADOG_LOG_URL
+        - name: DATADOG_SERVICE_NAME
+          valueFrom:
+            secretKeyRef:
+              name: katpool-secrets
+              key: DATADOG_SERVICE_NAME
+        - name: DATADOG_PAYMENT_SERVICE_NAME
+          valueFrom:
+            secretKeyRef:
+              name: katpool-secrets
+              key: DATADOG_PAYMENT_SERVICE_NAME
+        - name: DATADOG_MONITOR_SERVICE_NAME
+          valueFrom:
+            secretKeyRef:
+              name: katpool-secrets
+              key: DATADOG_MONITOR_SERVICE_NAME
+        - name: REDIS_HOST
+          value: "redis"
+        - name: REDIS_PORT
+          value: "6379"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          tcpSocket:
+            port: 8888
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          tcpSocket:
+            port: 8888
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+      volumes:
+      - name: config-volume
+        configMap:
+          name: katpool-config
+      - name: logs-volume
+        emptyDir: {} 
