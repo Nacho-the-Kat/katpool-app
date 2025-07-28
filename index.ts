@@ -16,18 +16,23 @@ import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
 import { stringifyHashrate } from './src/stratum/utils';
-import { WINDOW_SIZE } from './src/stratum/sharesManager';
+import {
+  DEBUG,
+  getNetworkConfig,
+  katpoolMonitor,
+  poolStartTime,
+  RPC_RETRY_INTERVAL,
+  RPC_TIMEOUT,
+  treasuryPrivateKey,
+  WINDOW_SIZE,
+} from './src/constants';
 
-export const poolStartTime = Date.now();
 const monitoring = new Monitoring();
 monitoring.log(`Main: Pool started at ${new Date(poolStartTime).toISOString()}`);
 
 let treasury: Treasury;
 
-let rpcUrl = 'kaspad:17110';
-if (config.network === 'testnet-10') {
-  rpcUrl = 'kaspad-test10:17210';
-}
+const { rpcUrl } = getNetworkConfig(config.network);
 
 monitoring.log(`Main: rpc url: ${rpcUrl}`);
 
@@ -152,14 +157,6 @@ process.on('unhandledRejection', error => {
   handleError('Unhandled Rejection', error);
 });
 
-export let DEBUG = 0;
-if (process.env.DEBUG == '1') {
-  DEBUG = 1;
-}
-
-const RPC_RETRY_INTERVAL = 5 * 100; // 500 MILLISECONDS
-const RPC_TIMEOUT = 24 * 60 * 60 * 1000; // 24 HOURS
-
 export async function checkRPCTimeoutError(error: unknown) {
   const isTimeoutError = (err: unknown): err is Error => {
     return err instanceof Error && err.message.includes('RPC request timeout');
@@ -182,11 +179,6 @@ export async function sendConfig() {
   try {
     const configPath = path.resolve('./config/config.json');
     const configData = fs.readFileSync(configPath, 'utf-8');
-
-    const katpoolMonitor = process.env.MONITOR;
-    if (!katpoolMonitor) {
-      throw new Error('Environment variable MONITOR is not set.');
-    }
 
     const response = await axios.post(`${katpoolMonitor}/postconfig`, {
       config: JSON.parse(configData),
@@ -232,11 +224,6 @@ monitoring.log(`Main: RPC connection started`);
 const serverInfo = await rpc.getServerInfo();
 if (!serverInfo.isSynced || !serverInfo.hasUtxoIndex)
   throw Error('Provided node is either not synchronized or lacks the UTXO index.');
-
-const treasuryPrivateKey = process.env.TREASURY_PRIVATE_KEY;
-if (!treasuryPrivateKey) {
-  throw new Error('Environment variable TREASURY_PRIVATE_KEY is not set.');
-}
 
 export const metrics = new PushMetrics();
 

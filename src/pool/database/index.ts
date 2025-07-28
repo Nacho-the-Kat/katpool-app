@@ -1,20 +1,7 @@
 import { Pool } from 'pg';
 import Monitoring from '../../monitoring';
 import JsonBig from 'json-bigint';
-
-type Miner = {
-  balance: bigint;
-};
-
-type MinerBalanceRow = {
-  miner_id: string;
-  wallet: string;
-  balance: string;
-};
-
-const defaultMiner: Miner = {
-  balance: 0n,
-};
+import type { MinerBalanceRow } from '../../types';
 
 const monitoring = new Monitoring();
 
