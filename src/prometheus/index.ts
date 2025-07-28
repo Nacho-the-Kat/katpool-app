@@ -4,9 +4,9 @@ import Monitoring from '../monitoring';
 import express from 'express';
 import client from 'prom-client';
 import { PROMETHEUS_METRICS_SERVER } from '../..';
-import { poolStartTime } from '../..';
 import { getServerStatus, serverUptime } from '../shared/heartbeat';
 import JsonBig from 'json-bigint';
+import { poolStartTime } from '../constants';
 
 const queue = new PQueue({ concurrency: 1 });
 const monitoring = new Monitoring();

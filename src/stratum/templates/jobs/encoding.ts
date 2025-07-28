@@ -1,10 +1,6 @@
 import blake2b, { type Blake2b } from 'blake2b';
 import type { IRawHeader } from '../../../../wasm/kaspa/kaspa';
-
-export enum Encoding {
-  BigHeader,
-  Bitmain,
-}
+import { Encoding } from '../../../types';
 
 function write16(hasher: Blake2b, value: number) {
   const buf = Buffer.alloc(2);

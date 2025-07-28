@@ -1,8 +1,13 @@
+import { WINDOW_SIZE } from '../constants';
 import type { Socket } from 'bun';
 import Monitoring from '../monitoring';
 import logger from '../monitoring/datadog';
-import type { Miner } from './server';
-import { WINDOW_SIZE, type WorkerStats } from './sharesManager';
+import type { WorkerStats, Miner } from '../types';
+import config from '../../config/config.json';
+
+const MIN_DIFF = config.stratum[0].minDiff || 64;
+const MAX_DIFF = config.stratum[0].maxDiff || 131072;
+const DEFAULT_DIFF = config.stratum[0].difficulty || 2048;
 
 const bigGig = Math.pow(10, 9);
 const maxTarget = BigInt('0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF');
@@ -119,4 +124,62 @@ export function debugHashrateCalculation(
   monitoring.debug(`  - Improved hashrate: ${improvedHashrate.toFixed(2)} GH/s`);
   monitoring.debug(`  - Current hashrate: ${workerRate} GH/s`);
   monitoring.debug(`  - Last share: ${new Date(stats.lastShare).toISOString()}`);
+}
+
+// Function to check if a number is power of 2
+function isPowerOf2(num: number): boolean {
+  return (num & (num - 1)) === 0 && num > 0;
+}
+
+// Function to round to the nearest power of 2
+function roundToNearestPowerOf2(num: number): number {
+  if (num < MIN_DIFF || num > MAX_DIFF) return DEFAULT_DIFF;
+
+  let pow = 1;
+  while (pow < num) {
+    pow *= 2;
+  }
+
+  const lower = pow / 2;
+  const upper = pow;
+
+  // Choose the nearest power of 2
+  return num - lower < upper - num ? lower : upper;
+}
+
+// Function to extract and validate difficulty
+function parseDifficulty(input: string): number | null {
+  const validPattern = /^(d=|diff=)?\d+$/i;
+
+  if (!validPattern.test(input)) {
+    return null;
+  }
+
+  const match = input.match(/(\d+)/);
+  if (match) {
+    const diff = Number(match[0]);
+    if (!isNaN(diff)) {
+      return diff;
+    }
+  }
+  return null;
+}
+
+// Function to apply clamping logic
+export function getDifficulty(input: string): number {
+  const diff = parseDifficulty(input);
+
+  if (diff === null || diff < MIN_DIFF || diff > MAX_DIFF) {
+    monitoring.debug(`Stratum: Invalid difficulty input: ${input}. Using default: ${DEFAULT_DIFF}`);
+    return -1;
+  }
+
+  // Clamp to range
+  const clampedDiff = Math.min(Math.max(diff, MIN_DIFF), MAX_DIFF);
+
+  // Ensure power-of-2 clamping
+  const finalDiff = isPowerOf2(clampedDiff) ? clampedDiff : roundToNearestPowerOf2(clampedDiff);
+
+  monitoring.log(`Stratum: User requested: ${diff}, applied: ${finalDiff}`);
+  return finalDiff;
 }

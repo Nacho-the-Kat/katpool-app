@@ -16,13 +16,21 @@ import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
 import { stringifyHashrate } from './src/stratum/utils';
+import {
+  DEBUG,
+  getNetworkConfig,
+  katpoolMonitor,
+  poolStartTime,
+  RPC_RETRY_INTERVAL,
+  RPC_TIMEOUT,
+  treasuryPrivateKey,
+  WINDOW_SIZE,
+} from './src/constants';
 import { server } from './src/user';
-import { WINDOW_SIZE } from './src/stratum/sharesManager';
 
 export const OAUTH_SERVER_PORT = 1818;
 export const PROMETHEUS_METRICS_SERVER = 9999;
 
-export const poolStartTime = Date.now();
 const monitoring = new Monitoring();
 monitoring.log(`Main: Pool started at ${new Date(poolStartTime).toISOString()}`);
 
@@ -62,11 +70,6 @@ process.on('unhandledRejection', error => {
   monitoring.error(`Main: Unhandled Rejection: `, error);
 });
 
-export let DEBUG = 0;
-if (process.env.DEBUG == '1') {
-  DEBUG = 1;
-}
-
 if (!process.env.UPHOLD_CLIENT_ID) {
   throw new Error('Environment variable UPHOLD_CLIENT_ID is not set.');
 }
@@ -83,20 +86,12 @@ if (!process.env.JWT_SECRET) {
   throw new Error('Environment variable JWT_SECRET is not set.');
 }
 
-const RPC_RETRY_INTERVAL = 5 * 100; // 500 MILI SECONDS
-const RPC_TIMEOUT = 24 * 60 * 60 * 1000; // 24 HOURS
-
 // Send config.json to API server
 export async function sendConfig() {
   if (DEBUG) monitoring.debug(`Main: Trying to send config to katpool-monitor`);
   try {
     const configPath = path.resolve('./config/config.json');
     const configData = fs.readFileSync(configPath, 'utf-8');
-
-    const katpoolMonitor = process.env.MONITOR;
-    if (!katpoolMonitor) {
-      throw new Error('Environment variable MONITOR is not set.');
-    }
 
     const response = await axios.post(`${katpoolMonitor}/postconfig`, {
       config: JSON.parse(configData),
@@ -114,10 +109,7 @@ dotenv.config();
 
 monitoring.log(`Main: network: ${config.network}`);
 
-let rpcUrl = 'kaspad:17110';
-if (config.network === 'testnet-10') {
-  rpcUrl = 'kaspad-test10:17210';
-}
+const { rpcUrl } = getNetworkConfig(config.network);
 
 monitoring.log(`Main: rpc url: ${rpcUrl}`);
 
@@ -158,11 +150,6 @@ monitoring.log(`Main: RPC connection started`);
 const serverInfo = await rpc.getServerInfo();
 if (!serverInfo.isSynced || !serverInfo.hasUtxoIndex)
   throw Error('Provided node is either not synchronized or lacks the UTXO index.');
-
-const treasuryPrivateKey = process.env.TREASURY_PRIVATE_KEY;
-if (!treasuryPrivateKey) {
-  throw new Error('Environment variable TREASURY_PRIVATE_KEY is not set.');
-}
 
 export const metrics = new PushMetrics();
 

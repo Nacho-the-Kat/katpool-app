@@ -1,7 +1,3 @@
-import Monitoring from '../../monitoring';
-
-const monitoring = new Monitoring();
-
 export interface RequestMappings {
   'mining.subscribe': [string, string]; // miner identifier & protocol
   'mining.authorize': [string, string]; // address.name & passwd
@@ -88,13 +84,11 @@ export function parseMessage(message: string, port: number) {
     const parsedMessage = JSON.parse(message);
 
     if (!validateRequest(parsedMessage)) {
-      // monitoring.error(`protocol ${port}: Rejected - invalid structure ${message.slice(0, 100)}`);
       return undefined;
     }
 
     return parsedMessage;
   } catch (error) {
-    // monitoring.error(`protocol ${port}: JSON parse failed: ${message.slice(0, 100)} - `, error);
     return undefined;
   }
 }
