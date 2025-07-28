@@ -118,9 +118,11 @@ spec:
               name: katpool-secrets
               key: DATADOG_MONITOR_SERVICE_NAME
         - name: REDIS_HOST
-          value: "redis"
+          value: "redis-external"
         - name: REDIS_PORT
           value: "6379"
+        - name: POSTGRES_HOSTNAME
+          value: "katpool-db-external"
         resources:
           requests:
             memory: "512Mi"

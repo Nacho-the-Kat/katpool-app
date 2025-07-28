@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: katpool-monitor
+  namespace: katpool
+  labels:
+    app: katpool-monitor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: katpool-monitor
+  template:
+    metadata:
+      labels:
+        app: katpool-monitor
+    spec:
+      containers:
+      - name: katpool-monitor
+        image: ghcr.io/nacho-the-kat/katpool-monitor:beta-v1.0.2-main
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 9301
+          name: monitor-9301
+        - containerPort: 9300
+          name: monitor-9300
+        volumeMounts:
+        - name: config-volume
+          mountPath: /app/config
+        env:
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: katpool-secrets
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: katpool-secrets
+              key: POSTGRES_PASSWORD
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef:
+              name: katpool-secrets
+              key: POSTGRES_DB
+        - name: POSTGRES_HOSTNAME
+          valueFrom:
+            secretKeyRef:
+              name: katpool-secrets
+              key: POSTGRES_HOSTNAME
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "200m"
+        livenessProbe:
+          tcpSocket:
+            port: 9301
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          tcpSocket:
+            port: 9301
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+      volumes:
+      - name: config-volume
+        configMap:
+          name: katpool-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: katpool-monitor
+  namespace: katpool
+spec:
+  selector:
+    app: katpool-monitor
+  ports:
+  - port: 9301
+    targetPort: 9301
+    name: monitor-9301
+  - port: 9300
+    targetPort: 9300
+    name: monitor-9300 
