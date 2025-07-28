@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import Monitoring from '../monitoring';
 import config from '../../config/config.json';
 import Database from '../pool/database';
+import { JWT_SECRET, TOKEN_ENCRYPTION_KEY } from '../constants';
 
 let AUTH_UPHOLD_BASE_URL = 'https://wallet.uphold.com/authorize';
 if (config.network === 'testnet-10') {
@@ -15,8 +16,6 @@ if (config.network === 'testnet-10') {
   UPHOLD_BASE_URL = 'https://api-sandbox.uphold.com';
 }
 
-const JWT_SECRET = process.env.JWT_SECRET!;
-const ENCRYPTION_KEY = process.env.TOKEN_ENCRYPTION_KEY!;
 const IV_LENGTH = 16;
 
 const monitoring = new Monitoring();
@@ -87,7 +86,7 @@ export async function getUserInfo(accessToken: string): Promise<UpholdUser> {
 export function encryptToken(token: string): string {
   const ivBuffer = crypto.randomBytes(IV_LENGTH);
   const iv = new Uint8Array(ivBuffer);
-  const key = new Uint8Array(Buffer.from(ENCRYPTION_KEY, 'hex'));
+  const key = new Uint8Array(Buffer.from(TOKEN_ENCRYPTION_KEY, 'hex'));
   const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
   let encrypted = cipher.update(token, 'utf8', 'hex');
   encrypted += cipher.final('hex');
@@ -97,7 +96,7 @@ export function encryptToken(token: string): string {
 export function decryptToken(encryptedToken: string): string {
   const [ivHex, encrypted] = encryptedToken.split(':');
   const iv = new Uint8Array(Buffer.from(ivHex, 'hex'));
-  const key = new Uint8Array(Buffer.from(ENCRYPTION_KEY, 'hex'));
+  const key = new Uint8Array(Buffer.from(TOKEN_ENCRYPTION_KEY, 'hex'));
   const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
   let decrypted = decipher.update(encrypted, 'hex', 'utf8');
   decrypted += decipher.final('utf8');

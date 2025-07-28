@@ -14,9 +14,8 @@ import {
 } from './authorizationCodeFlow';
 import Monitoring from '../monitoring';
 import Database from '../pool/database';
-import { OAUTH_SERVER_PORT } from '../..';
+import { OAUTH_SERVER_PORT, state } from '../constants';
 
-const state = process.env.OAUTH_STATE!;
 const app: express.Application = express();
 const router = Router();
 const monitoring = new Monitoring();

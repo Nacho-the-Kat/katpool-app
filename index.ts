@@ -20,6 +20,7 @@ import {
   DEBUG,
   getNetworkConfig,
   katpoolMonitor,
+  OAUTH_SERVER_PORT,
   poolStartTime,
   RPC_RETRY_INTERVAL,
   RPC_TIMEOUT,
@@ -27,9 +28,6 @@ import {
   WINDOW_SIZE,
 } from './src/constants';
 import { server } from './src/user';
-
-export const OAUTH_SERVER_PORT = 1818;
-export const PROMETHEUS_METRICS_SERVER = 9999;
 
 const monitoring = new Monitoring();
 monitoring.log(`Main: Pool started at ${new Date(poolStartTime).toISOString()}`);
@@ -69,22 +67,6 @@ process.on('uncaughtException', error => {
 process.on('unhandledRejection', error => {
   monitoring.error(`Main: Unhandled Rejection: `, error);
 });
-
-if (!process.env.UPHOLD_CLIENT_ID) {
-  throw new Error('Environment variable UPHOLD_CLIENT_ID is not set.');
-}
-if (!process.env.UPHOLD_CLIENT_SECRET) {
-  throw new Error('Environment variable UPHOLD_CLIENT_SECRET is not set.');
-}
-if (!process.env.TOKEN_ENCRYPTION_KEY) {
-  throw new Error('Environment variable TOKEN_ENCRYPTION_KEY is not set.');
-}
-if (!process.env.OAUTH_STATE) {
-  throw new Error('Environment variable OAUTH_STATE is not set.');
-}
-if (!process.env.JWT_SECRET) {
-  throw new Error('Environment variable JWT_SECRET is not set.');
-}
 
 // Send config.json to API server
 export async function sendConfig() {
