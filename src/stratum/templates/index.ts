@@ -102,7 +102,9 @@ export default class Templates {
         error,
         stack,
       });
-      this.monitoring.debug(`Templates: ERROR - Block submit : ${error} - ${stack}`);
+      this.monitoring.debug(
+        `Templates: ERROR - Block submit : ${error} - ${stack ? ' - ' + stack : ''}`
+      );
       return;
     }
 
