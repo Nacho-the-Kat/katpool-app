@@ -30,6 +30,11 @@ spec:
           value: "redis-external"
         - name: REDIS_PORT
           value: "6379"
+        - name: TREASURY_PRIVATE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: katpool-secrets
+              key: TREASURY_PRIVATE_KEY
         - name: POSTGRES_USER
           valueFrom:
             secretKeyRef:

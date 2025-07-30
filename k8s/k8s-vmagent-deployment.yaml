@@ -19,13 +19,15 @@ spec:
       - name: katpool-vmagent
         image: victoriametrics/vmagent:v1.97.0
         imagePullPolicy: Always
+        args:
+        - '-promscrape.config=/etc/vmagent/vmagent.yml'
+        - '-remoteWrite.url=http://katpool-victoria-metrics:8428/api/v1/write'
+        ports:
+        - containerPort: 8429
+          name: vmagent-8429
         volumeMounts:
         - name: vmagent-config
-          mountPath: /etc/vmagent.yml
-          subPath: vmagent.yml
-        command:
-        - '-promscrape.config=/etc/vmagent.yml'
-        - '-remoteWrite.url=http://katpool-victoria-metrics:8428/api/v1/write'
+          mountPath: /etc/vmagent
         resources:
           requests:
             memory: "256Mi"
@@ -87,4 +89,4 @@ data:
 
       - job_name: 'katpool-monitor'
         static_configs:
-          - targets: ['katpool-monitor:9300'] 
+          - targets: ['katpool-monitor:9300']

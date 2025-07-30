@@ -19,23 +19,23 @@ spec:
       - name: katpool-victoria-metrics
         image: victoriametrics/victoria-metrics:v1.93.4
         imagePullPolicy: Always
-        ports:
-        - containerPort: 8428
-          name: victoria-metrics-8428
-        volumeMounts:
-        - name: victoria-data
-          mountPath: /victoria-metrics-data
-        command:
+        args:
         - '-storageDataPath=/victoria-metrics-data'
         - '-retentionPeriod=1y'
         - '-httpListenAddr=:8428'
         - '-memory.allowedPercent=60'
         - '-search.maxConcurrentRequests=8'
         - '-search.maxQueryDuration=60s'
-        - '--search.maxSeries=500000000'
-        - '--search.maxUniqueTimeseries=500000000'
-        - '--search.maxSamplesPerQuery=500000000'
-        - '--search.maxPointsPerTimeseries=500000000'
+        - '-search.maxSeries=500000000'
+        - '-search.maxUniqueTimeseries=500000000'
+        - '-search.maxSamplesPerQuery=500000000'
+        - '-search.maxPointsPerTimeseries=500000000'
+        ports:
+        - containerPort: 8428
+          name: victoria-8428
+        volumeMounts:
+        - name: victoria-data
+          mountPath: /victoria-metrics-data
         resources:
           requests:
             memory: "1Gi"
@@ -75,7 +75,7 @@ spec:
   ports:
   - port: 8428
     targetPort: 8428
-    name: victoria-metrics-8428
+    name: victoria-8428
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -87,4 +87,6 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 100Gi 
+      storage: 100Gi
+  # Optional: Uncomment to specify storage class
+  # storageClassName: standard

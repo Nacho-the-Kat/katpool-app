@@ -6,7 +6,7 @@ metadata:
   labels:
     app: katpool-app
 spec:
-  replicas: 2
+  replicas: 1
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -20,9 +20,10 @@ spec:
       labels:
         app: katpool-app
     spec:
+      terminationGracePeriodSeconds: 5
       containers:
       - name: katpool-app
-        image: ghcr.io/nacho-the-kat/katpool-app:beta-v1.0.2-main
+        image: ghcr.io/nacho-the-kat/katpool-app:beta-v1.0.2-fix-test-k8s-deployment
         imagePullPolicy: Always
         ports:
         - containerPort: 1111
@@ -67,11 +68,6 @@ spec:
             secretKeyRef:
               name: katpool-secrets
               key: POSTGRES_DB
-        - name: POSTGRES_HOSTNAME
-          valueFrom:
-            secretKeyRef:
-              name: katpool-secrets
-              key: POSTGRES_HOSTNAME
         - name: DATABASE_URL
           valueFrom:
             secretKeyRef:
@@ -118,11 +114,11 @@ spec:
               name: katpool-secrets
               key: DATADOG_MONITOR_SERVICE_NAME
         - name: REDIS_HOST
-          value: "redis-external"
+          value: "152.53.178.127"
         - name: REDIS_PORT
           value: "6379"
         - name: POSTGRES_HOSTNAME
-          value: "katpool-db-external"
+          value: "152.53.178.127"
         resources:
           requests:
             memory: "512Mi"
@@ -149,4 +145,4 @@ spec:
         configMap:
           name: katpool-config
       - name: logs-volume
-        emptyDir: {} 
+        emptyDir: {}

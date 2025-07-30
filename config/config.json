@@ -1,11 +1,11 @@
 {
   "node": [],
-  "network": "mainnet",
+  "network": "testnet-10",
   "pool_id": "us-katpool1",
   "location": "us-east",
   "hostname": "kas.katpool.xyz",
   "block_wait_time_milliseconds": "300",
-  "redis_address": "redis:6379",
+  "redis_address": "127.0.0.1:6379",
   "redis_channel": "NewBlockTemplateChannel",
   "miner_info": "Katpool",
   "templates": {
