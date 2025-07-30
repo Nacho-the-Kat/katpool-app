@@ -18,6 +18,7 @@ export default class Treasury extends EventEmitter {
   context: UtxoContext;
   fee: number;
   rpc: RpcClient;
+  private networkId: string;
   private monitoring: Monitoring;
   private blockQueue: Map<string, any> = new Map();
   private lastBlockTimestamp: number = Date.now();
@@ -31,6 +32,7 @@ export default class Treasury extends EventEmitter {
     this.rpc = rpc;
     this.address = address;
     this.processor = new UtxoProcessor({ rpc: this.rpc, networkId });
+    this.networkId = networkId;
     this.context = new UtxoContext({ processor: this.processor });
     this.fee = fee;
     this.monitoring = new Monitoring();
@@ -47,6 +49,44 @@ export default class Treasury extends EventEmitter {
       this.startWatchdog();
     } catch (error) {
       this.monitoring.error(`Treasury: LISTEN ERROR: `, error);
+    }
+  }
+
+  async reconnectProcessor() {
+    if (this.reconnecting) return;
+    this.reconnecting = true;
+
+    try {
+      this.monitoring.log('Treasury: Reconnecting UtxoProcessor...');
+
+      // 1. Stop the current processor
+      await this.processor.stop();
+
+      // 2. Remove event listeners
+      this.processor.removeEventListener('utxo-proc-start', this.utxoProcStartHandler);
+      this.processor.removeEventListener('maturity', this.maturityHandler);
+
+      // 3. Clear the context
+      await this.context.clear();
+
+      // 4. Create new processor and context with the reconnected RPC
+      this.processor = new UtxoProcessor({ rpc: this.rpc, networkId: this.networkId });
+      this.context = new UtxoContext({ processor: this.processor });
+
+      // 5. Re-register event listeners
+      this.processor.addEventListener('utxo-proc-start', this.utxoProcStartHandler);
+      this.processor.addEventListener('maturity', this.maturityHandler);
+
+      // 6. Start the processor again
+      this.processor.start();
+
+      this.monitoring.log('Treasury: UtxoProcessor reconnected successfully');
+    } catch (error) {
+      this.monitoring.error(`Treasury: Error during processor reconnection: ${error}`);
+      // Retry after a delay
+      setTimeout(() => this.reconnectProcessor(), 5000);
+    } finally {
+      this.reconnecting = false;
     }
   }
 
@@ -137,11 +177,21 @@ export default class Treasury extends EventEmitter {
     if (this.reconnecting) return;
     this.reconnecting = true;
     try {
+      this.monitoring.log('Treasury: Reconnecting block listener...');
+
+      // Handle block subscription
       this.rpc.removeEventListener('block-added', this.blockAddedHandler);
       this.rpc.unsubscribeBlockAdded();
+
+      // Handle UtxoProcessor reconnection
+      await this.reconnectProcessor();
+
+      // Re-register the block added handler
       this.rpc.subscribeBlockAdded();
       await this.listenToBlocks();
       this.startWatchdog();
+
+      this.monitoring.log('Treasury: Block listener reconnected successfully');
     } catch (error) {
       this.monitoring.error(`Treasury: Error during reconnectBlockListener: `, error);
       setTimeout(() => this.reconnectBlockListener(), 5000); // Retry after 5 seconds
