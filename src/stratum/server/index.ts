@@ -13,6 +13,7 @@ export default class Server {
   private onMessage: MessageCallback;
   private monitoring: Monitoring;
   private port: number;
+  private sharesManager;
 
   constructor(
     port: number,
@@ -24,6 +25,7 @@ export default class Server {
     this.difficulty = difficulty;
     this.onMessage = onMessage;
     this.port = port;
+    this.sharesManager = sharesManager;
 
     this.socket = Bun.listen({
       hostname: '0.0.0.0',
@@ -32,6 +34,9 @@ export default class Server {
         open: this.onConnect.bind(this),
         data: this.onData.bind(this),
         error: (socket, error) => {
+          socket.data.closeReason ??= error.message;
+          this.sharesManager.stats.cleanupSocket(socket);
+
           this.monitoring.debug(
             `server ${this.port}: ERROR ${socket?.remoteAddress || 'unknown'} Opening socket ${error}`
           );
@@ -44,26 +49,27 @@ export default class Server {
         },
         close: socket => {
           const workers = Array.from(socket.data.workers.values());
-          const closeReason = socket.data.closeReason || 'Client disconnected';
+          socket.data.closeReason ??= 'Client disconnected';
+          this.sharesManager.stats.cleanupSocket(socket);
           if (workers.length === 0) {
             this.monitoring.debug(
-              `server ${this.port}: Socket from ${socket.remoteAddress} disconnected before worker auth.`
+              `server ${this.port}: Socket from ${socket.remoteAddress} disconnected before worker auth.  - Reason: ${socket.data.closeReason}`
             );
             logger.warn(
               'Socket Disconnected before worker auth',
               getSocketLogData(socket, {
-                closeReason,
+                reason: socket.data.closeReason,
               })
             );
           } else {
             for (const worker of workers) {
               this.monitoring.debug(
-                `server ${this.port}: Worker ${worker.name} disconnected from ${socket.remoteAddress}`
+                `server ${this.port}: Worker ${worker.name} disconnected from ${socket.remoteAddress} - Reason: ${socket.data.closeReason}`
               );
               logger.warn(
                 'Socket Worker disconnected',
                 getSocketLogData(socket, {
-                  closeReason,
+                  reason: socket.data.closeReason,
                 })
               );
             }
@@ -81,14 +87,15 @@ export default class Server {
           );
         },
         end: socket => {
-          socket.data.closeReason = 'Socket connection ended gracefully';
+          socket.data.closeReason ??= 'Socket connection ended';
           this.monitoring.debug(
-            `server ${this.port}: Socket connection ended gracefully for ${socket?.remoteAddress || 'unknown'}`
+            `server ${this.port}: Socket connection ended for ${socket?.remoteAddress || 'unknown'}`
           );
-          logger.info('Socket connection ended gracefully', getSocketLogData(socket));
+          logger.info('Socket connection ended', getSocketLogData(socket));
         },
         timeout: socket => {
-          socket.data.closeReason = 'Connection timeout';
+          socket.data.closeReason ??= 'Connection timeout';
+          this.sharesManager.stats.cleanupSocket(socket);
           this.monitoring.debug(
             `server ${this.port}: Connection timeout for ${socket?.remoteAddress || 'unknown'}`
           );

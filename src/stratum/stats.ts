@@ -1,11 +1,16 @@
 import Denque from 'denque';
 import Monitoring from '../monitoring';
-import { type MinerData, type WorkerStats } from '../types';
+import { type Miner, type MinerData, type WorkerStats } from '../types';
 import type { SharesManager } from './sharesManager';
 import { DEBUG, WINDOW_SIZE } from '../constants';
 import { activeMinerGuage, workerHashRateGauge } from '../prometheus';
 import { metrics } from '../..';
-import { debugHashrateCalculation, getAverageHashrateGHs, stringifyHashrate } from './utils';
+import {
+  debugHashrateCalculation,
+  getAverageHashrateGHs,
+  stringifyHashrate,
+  getSocketLogData,
+} from './utils';
 import logger from '../monitoring/datadog';
 import type { Socket } from 'bun';
 import JsonBig from 'json-bigint';
@@ -105,35 +110,15 @@ export class Stats {
           try {
             if (status === 0) {
               let found = false;
-              let socket: Socket<any>;
+              // Find and close inactive sockets - let event cleanup handle the rest
               minerData.sockets.forEach(skt => {
                 if (skt.data.workers.has(workerName) && !found) {
                   this.monitoring.debug(
-                    `\nSharesManager ${this.sharesManager.port}: MinerData before - `
+                    `Stats ${this.sharesManager.port}: Closing inactive socket for worker: ${workerName}, address: ${address}`
                   );
-                  this.logData(minerData);
-                  this.monitoring.debug(
-                    `Stats ${this.sharesManager.port}: Status is inactive for worker: ${workerName}, address: ${address}`
-                  );
-                  minerData.workerStats.delete(workerName);
-                  this.monitoring.debug(
-                    `Stats ${this.sharesManager.port}: Deleted workerstats: ${workerName}, address: ${address}`
-                  );
-                  socket = skt;
-                  this.monitoring.debug(
-                    `Stats ${this.sharesManager.port}: Socket found for deletion: ${workerName}, address: ${address}`
-                  );
+                  skt.data.closeReason = 'Inactive worker timeout - 10 Minute';
+                  skt.end(); // This will trigger the close event and deleteSocket method
                   found = true;
-                  socket.end();
-                  socket = skt;
-                  minerData.sockets.delete(socket!);
-                  this.monitoring.debug(
-                    `Stats ${this.sharesManager.port}: Deleted socket for : ${workerName}, address: ${address}`
-                  );
-                  this.monitoring.debug(
-                    `\nSharesManager ${this.sharesManager.port}: MinerData after - `
-                  );
-                  this.logData(minerData);
                 }
               });
               if (!found) {
@@ -184,6 +169,31 @@ export class Stats {
       },
       { sharesFound: 0, staleShares: 0, invalidShares: 0, blocksFound: 0 }
     );
+  }
+
+  // Add this method to your SharesManager class
+  cleanupSocket(socket: Socket<Miner>) {
+    socket.data.workers.forEach((worker, workerName) => {
+      const minerData = this.sharesManager.miners.get(worker.address);
+      if (minerData) {
+        // Remove the socket from the sockets set
+        minerData.sockets.delete(socket);
+        this.monitoring.debug(
+          `Stats ${this.sharesManager.port}: Deleted socket for: ${workerName}@${worker.address}`
+        );
+        logger.warn(`deleteSocket, ${socket.data.closeReason}`, getSocketLogData(socket));
+
+        // If no more sockets for this address, clean up the entire miner data
+        if (minerData.sockets.size === 0) {
+          this.sharesManager.miners.delete(worker.address);
+          const msg = `Stats ${this.sharesManager.port}: Cleaned up all data for address ${worker.address}`;
+          if (DEBUG) {
+            this.monitoring.debug(msg);
+          }
+          logger.warn(msg);
+        }
+      }
+    });
   }
 
   logData(minerData: MinerData) {
