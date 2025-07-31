@@ -101,7 +101,7 @@ export default class Server {
   }
 
   private onConnect(socket: Socket<Miner>) {
-    logger.warn('onConnect-trigger', getSocketLogData(socket));
+    logger.warn('onConnect-trigger', { socket: socket.toString() });
     socket.data = {
       extraNonce: '',
       difficulty: this.difficulty,
@@ -117,7 +117,7 @@ export default class Server {
   }
 
   private onData(socket: Socket<Miner>, data: Buffer) {
-    logger.warn('onData-trigger', getSocketLogData(socket));
+    logger.warn('onData-trigger', { socket: socket.toString(), data: data.toString() });
     updateMinerActivity(this.port); // Any connection
 
     socket.data.cachedBytes += data;
