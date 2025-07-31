@@ -31,8 +31,21 @@ export default class Server {
       hostname: '0.0.0.0',
       port: port,
       socket: {
-        open: this.onConnect.bind(this),
-        data: this.onData.bind(this),
+        open: socket => {
+          logger.warn('server-socket-opened', {
+            port: this.port,
+            remoteAddress: socket.remoteAddress,
+          });
+          this.onConnect(socket);
+        },
+        data: (socket, data) => {
+          logger.warn('socket-data-received', {
+            port: this.port,
+            remoteAddress: socket.remoteAddress,
+            dataLength: data.length,
+          });
+          this.onData(socket, data);
+        },
         error: (socket, error) => {
           socket.data.closeReason ??= error.message;
           this.sharesManager.stats.cleanupSocket(socket);
@@ -127,6 +140,17 @@ export default class Server {
       connectedAt: Date.now(),
       port: this.port,
     };
+
+    // Add connection logging
+    this.monitoring.log(
+      `Stratum ${this.port}: New connection from ${socket.remoteAddress} - Difficulty: ${this.difficulty}`
+    );
+    logger.info('miner-connect', {
+      port: this.port,
+      remoteAddress: socket.remoteAddress,
+      difficulty: this.difficulty,
+      timestamp: Date.now(),
+    });
 
     updateMinerActivity(this.port);
   }

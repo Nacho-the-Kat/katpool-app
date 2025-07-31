@@ -81,6 +81,16 @@ export class StratumHandler {
     const [address, name] = request.params[0].split('.');
     let userDiff = this.difficulty; // Defaults to the ports default difficulty
     const userDiffInput = request.params[1];
+
+    // Add detailed logging for authorization
+    logger.info('authorization-attempt', {
+      port: this.sharesManager.port,
+      address,
+      worker: name,
+      portDifficulty: this.difficulty,
+      userDiffInput,
+    });
+
     if (this.sharesManager.port === 8888 && (userDiffInput != '' || /\d/.test(userDiffInput))) {
       // Only when they connect to this port, allow user defined diff
       userDiff = getDifficulty(userDiffInput);
