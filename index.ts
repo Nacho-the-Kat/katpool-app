@@ -26,6 +26,7 @@ import {
   treasuryPrivateKey,
   WINDOW_SIZE,
 } from './src/constants';
+import logger from './src/monitoring/datadog';
 
 const monitoring = new Monitoring();
 monitoring.log(`Main: Pool started at ${new Date(poolStartTime).toISOString()}`);
@@ -140,27 +141,34 @@ const address: string = privateKey.toAddress(config.network).toString();
 // Create Templates instance
 const templates = new Templates(rpc, address, config.templates.cacheSize);
 
-for (const stratumConfig of config.stratum) {
-  // Create Stratum instance
-  const stratum = new Stratum(
-    templates,
-    stratumConfig.difficulty,
-    stratumConfig.port,
-    stratumConfig.sharesPerMinute,
-    stratumConfig.clampPow2,
-    stratumConfig.varDiff,
-    stratumConfig.extraNonceSize,
-    stratumConfig.minDiff,
-    stratumConfig.maxDiff
-  );
+try {
+  for (const stratumConfig of config.stratum) {
+    // Create Stratum instance
+    const stratum = new Stratum(
+      templates,
+      stratumConfig.difficulty,
+      stratumConfig.port,
+      stratumConfig.sharesPerMinute,
+      stratumConfig.clampPow2,
+      stratumConfig.varDiff,
+      stratumConfig.extraNonceSize,
+      stratumConfig.minDiff,
+      stratumConfig.maxDiff
+    );
 
-  // Store the stratums for later reference
-  stratums.push(stratum);
+    // Store the stratums for later reference
+    stratums.push(stratum);
+  }
+} catch (error) {
+  logger.error('error-creating-stratum', { error });
 }
-
-treasury = new Treasury(rpc, serverInfo.networkId, address, config.treasury.fee);
-
-export const pool = new Pool(treasury, stratums);
+let pool: any;
+try {
+  treasury = new Treasury(rpc, serverInfo.networkId, address, config.treasury.fee);
+  pool = new Pool(treasury, stratums);
+} catch (err) {
+  logger.error('error-creating-treasury', { err });
+}
 
 // Function to calculate and update pool hash rate
 function calculatePoolHashrate() {

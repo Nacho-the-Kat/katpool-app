@@ -39,6 +39,11 @@ export default class Server {
           this.onConnect(socket);
         },
         data: (socket, data) => {
+          logger.warn('worker-info', {
+            stats: this.sharesManager.stats,
+            miners: this.sharesManager.miners,
+            workers: socket.data.workers,
+          });
           logger.warn('socket-data-received', {
             port: this.port,
             remoteAddress: socket.remoteAddress,
@@ -126,9 +131,6 @@ export default class Server {
       remoteAddress: socket.remoteAddress,
       difficulty: this.difficulty,
     });
-
-    // Disable socket timeout to prevent automatic disconnections
-    socket.timeout(0);
 
     socket.data = {
       extraNonce: '',
