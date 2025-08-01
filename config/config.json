@@ -5,7 +5,7 @@
   "location": "us-east",
   "hostname": "kas.katpool.xyz",
   "block_wait_time_milliseconds": "300",
-  "redis_address": "127.0.0.1:6379",
+  "redis_address": "152.53.178.127:6379",
   "redis_channel": "NewBlockTemplateChannel",
   "miner_info": "Katpool",
   "templates": {
