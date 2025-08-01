@@ -42,6 +42,10 @@ export class StratumHandler {
     response: Response,
     subscriptors: Set<Socket<Miner>>
   ) {
+    logger.info('subscribe-attempt', {
+      port: this.sharesManager.port,
+      request: JSON.stringify(request, null, 2),
+    });
     response.id = request.id;
 
     if (subscriptors.has(socket)) throw Error('Already subscribed');
@@ -77,6 +81,10 @@ export class StratumHandler {
   }
 
   authorize(socket: Socket<Miner>, request: Request) {
+    logger.info('authorize-attempt', {
+      port: this.sharesManager.port,
+      request: JSON.stringify(request, null, 2),
+    });
     let varDiffStatus = false;
     const [address, name] = request.params[0].split('.');
     let userDiff = this.difficulty; // Defaults to the ports default difficulty
@@ -191,6 +199,10 @@ export class StratumHandler {
   }
 
   submit(socket: Socket<Miner>, request: Request, response: Response) {
+    logger.info('submit-attempt', {
+      port: this.sharesManager.port,
+      request: JSON.stringify(request, null, 2),
+    });
     response.id = request.id;
     // Validate params array has required elements
     if (!request.params[2]) {

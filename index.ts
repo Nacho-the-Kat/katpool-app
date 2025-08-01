@@ -162,13 +162,9 @@ try {
 } catch (error) {
   logger.error('error-creating-stratum', { error });
 }
-let pool: any;
-try {
-  treasury = new Treasury(rpc, serverInfo.networkId, address, config.treasury.fee);
-  pool = new Pool(treasury, stratums);
-} catch (err) {
-  logger.error('error-creating-treasury', { err });
-}
+
+treasury = new Treasury(rpc, serverInfo.networkId, address, config.treasury.fee);
+const pool = new Pool(treasury, stratums);
 
 // Function to calculate and update pool hash rate
 function calculatePoolHashrate() {
