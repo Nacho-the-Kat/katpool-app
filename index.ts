@@ -90,8 +90,8 @@ const { rpcUrl } = getNetworkConfig(config.network);
 monitoring.log(`Main: rpc url: ${rpcUrl}`);
 
 const rpc = new RpcClient({
-  url: rpcUrl, // This is WRPC (borsh) end point
-  // resolver: new Resolver(),
+  // url: rpcUrl, // This is WRPC (borsh) end point
+  resolver: new Resolver(),
   encoding: Encoding.Borsh,
   networkId: config.network,
 });
