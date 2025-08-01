@@ -164,7 +164,7 @@ try {
 }
 
 treasury = new Treasury(rpc, serverInfo.networkId, address, config.treasury.fee);
-const pool = new Pool(treasury, stratums);
+export const pool = new Pool(treasury, stratums);
 
 // Function to calculate and update pool hash rate
 function calculatePoolHashrate() {
