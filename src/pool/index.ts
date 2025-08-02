@@ -11,7 +11,7 @@ import JsonBig from 'json-bigint';
 import logger from '../monitoring/datadog';
 import type { Contribution } from '../types';
 import { databaseUrl, DEBUG, getNetworkConfig } from '../constants';
-
+logger.info('databaseUrl', { databaseUrl });
 const monitoring = new Monitoring();
 
 axiosRetry(axios, {
