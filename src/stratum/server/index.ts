@@ -56,7 +56,7 @@ export default class Server {
           // );
         },
         close: socket => {
-          logger.warn('custom-log-socket-close', getSocketLogData(socket));
+          logger.warn('custom-log-socket-close');
           const workers = Array.from(socket.data.workers.values());
           const closeReason = socket.data.closeReason || 'Client disconnected';
           if (workers.length === 0) {

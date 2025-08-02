@@ -70,12 +70,12 @@ export function diffToHash(diff: number): number {
 
 export function getSocketLogData(socket: Socket<Miner>, additionalData?: Record<string, any>) {
   return {
-    port: socket.data.port,
-    difficulty: socket.data.difficulty,
+    port: socket?.data?.port || 'unknown',
+    difficulty: socket?.data?.difficulty || 'unknown',
     remoteAddress: socket?.remoteAddress || 'unknown',
     workers: socket?.data?.workers ? Array.from(socket.data.workers.keys()) : [],
-    connectedAt: socket.data.connectedAt,
-    duration: Date.now() - socket.data.connectedAt,
+    connectedAt: socket?.data?.connectedAt || Date.now(),
+    duration: socket?.data?.connectedAt ? Date.now() - socket.data.connectedAt : 0,
     ...additionalData,
   };
 }
