@@ -38,7 +38,7 @@ export default class Server {
           this.onData(socket, data);
         },
         error: (socket, error) => {
-          logger.warn('custom-log-socket-error', getSocketLogData(socket));
+          logger.warn('custom-log-socket-error');
           this.monitoring.debug(
             `server ${this.port}: ERROR ${socket?.remoteAddress || 'unknown'} Opening socket ${error}`
           );
