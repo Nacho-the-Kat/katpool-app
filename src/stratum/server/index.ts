@@ -42,12 +42,12 @@ export default class Server {
           this.monitoring.debug(
             `server ${this.port}: ERROR ${socket?.remoteAddress || 'unknown'} Opening socket ${error}`
           );
-          logger.error(
-            'Socket error',
-            getSocketLogData(socket, {
-              error: error.message,
-            })
-          );
+          // logger.error(
+          //   'Socket error',
+          //   getSocketLogData(socket, {
+          //     error: error.message,
+          //   })
+          // );
         },
         close: socket => {
           logger.warn('custom-log-socket-close', getSocketLogData(socket));
