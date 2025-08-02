@@ -29,9 +29,16 @@ export default class Server {
       hostname: '0.0.0.0',
       port: port,
       socket: {
-        open: this.onConnect.bind(this),
-        data: this.onData.bind(this),
+        open: socket => {
+          logger.warn('custom-log-socket-open');
+          this.onConnect(socket);
+        },
+        data: (socket, data) => {
+          logger.warn('custom-log-socket-data');
+          this.onData(socket, data);
+        },
         error: (socket, error) => {
+          logger.warn('custom-log-socket-error');
           this.monitoring.debug(
             `server ${this.port}: ERROR ${socket?.remoteAddress || 'unknown'} Opening socket ${error}`
           );
@@ -43,6 +50,7 @@ export default class Server {
           );
         },
         close: socket => {
+          logger.warn('custom-log-socket-close');
           const workers = Array.from(socket.data.workers.values());
           const closeReason = socket.data.closeReason || 'Client disconnected';
           if (workers.length === 0) {
@@ -70,6 +78,7 @@ export default class Server {
           }
         },
         connectError: (socket, error) => {
+          logger.warn('custom-log-socket-connect-error');
           this.monitoring.debug(
             `server ${this.port}: ERROR ${socket?.remoteAddress || 'unknown'} Connection error: ${error}`
           );
@@ -81,6 +90,7 @@ export default class Server {
           );
         },
         end: socket => {
+          logger.warn('custom-log-socket-end');
           socket.data.closeReason = 'Socket connection ended gracefully';
           this.monitoring.debug(
             `server ${this.port}: Socket connection ended gracefully for ${socket?.remoteAddress || 'unknown'}`
@@ -88,6 +98,7 @@ export default class Server {
           logger.info('Socket connection ended gracefully', getSocketLogData(socket));
         },
         timeout: socket => {
+          logger.warn('custom-log-socket-timeout');
           socket.data.closeReason = 'Connection timeout';
           this.monitoring.debug(
             `server ${this.port}: Connection timeout for ${socket?.remoteAddress || 'unknown'}`
@@ -101,6 +112,8 @@ export default class Server {
   }
 
   private onConnect(socket: Socket<Miner>) {
+    logger.warn('custom-log-onConnect');
+    logger.warn('socket-connection-established-onConnect', getSocketLogData(socket));
     socket.data = {
       extraNonce: '',
       difficulty: this.difficulty,
@@ -116,6 +129,7 @@ export default class Server {
   }
 
   private onData(socket: Socket<Miner>, data: Buffer) {
+    logger.warn('custom-log-onData');
     updateMinerActivity(this.port); // Any connection
 
     socket.data.cachedBytes += data;

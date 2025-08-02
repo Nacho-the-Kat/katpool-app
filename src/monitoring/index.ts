@@ -60,12 +60,10 @@ export default class Monitoring {
   }
 
   log(message: string) {
-    datadogLogger.info(message);
     this.logQueue.add(() => this.processLog({ level: 'INFO', message }));
   }
 
   debug(message: string) {
-    datadogLogger.info(message);
     if (this.debugEnabled) {
       this.logQueue.add(() => this.processLog({ level: 'DEBUG', message }));
     }
