@@ -30,15 +30,21 @@ export default class Server {
       port: port,
       socket: {
         open: socket => {
-          logger.warn('custom-log-socket-open', getSocketLogData(socket));
+          logger.warn('custom-log-socket-open');
           this.onConnect(socket);
         },
         data: (socket, data) => {
-          logger.warn('custom-log-socket-data', getSocketLogData(socket));
+          logger.warn('custom-log-socket-data');
           this.onData(socket, data);
         },
         error: (socket, error) => {
-          logger.warn('custom-log-socket-error');
+          logger.warn('custom-log-socket-error', {
+            error: error.message,
+            data: JSON.stringify(error, null, 2),
+            stack: error.stack,
+            keys: Object.keys(error).join(', '),
+            values: Object.values(error).join(', '),
+          });
           this.monitoring.debug(
             `server ${this.port}: ERROR ${socket?.remoteAddress || 'unknown'} Opening socket ${error}`
           );
