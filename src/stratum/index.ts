@@ -146,6 +146,7 @@ export default class Stratum {
   }
 
   private async onMessage(socket: Socket<Miner>, request: Request) {
+    logger.warn('custom-log-onMessage-trigger', getSocketLogData(socket));
     const release = await this.minerDataLock.acquire();
     try {
       let response: Response = {
