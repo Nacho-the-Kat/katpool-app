@@ -30,11 +30,11 @@ export default class Server {
       port: port,
       socket: {
         open: socket => {
-          logger.warn('custom-log-socket-open');
+          logger.warn('custom-log-socket-open', getSocketLogData(socket));
           this.onConnect(socket);
         },
         data: (socket, data) => {
-          logger.warn('custom-log-socket-data');
+          logger.warn('custom-log-socket-data', getSocketLogData(socket));
           this.onData(socket, data);
         },
         error: (socket, error) => {
