@@ -20,12 +20,14 @@ import {
   DEBUG,
   getNetworkConfig,
   katpoolMonitor,
+  OAUTH_SERVER_PORT,
   poolStartTime,
   RPC_RETRY_INTERVAL,
   RPC_TIMEOUT,
   treasuryPrivateKey,
   WINDOW_SIZE,
 } from './src/constants';
+import { server } from './src/user';
 
 const monitoring = new Monitoring();
 monitoring.log(`Main: Pool started at ${new Date(poolStartTime).toISOString()}`);
@@ -40,6 +42,10 @@ async function shutdown() {
     if (treasury) {
       await treasury.unregisterProcessor();
     }
+    server.close(() => {
+      monitoring.log(`Main: Server on port ${OAUTH_SERVER_PORT} closed`);
+      process.exit(0);
+    });
   } catch (error) {
     monitoring.error(`Main: Removing and unsubscribing events: `, error);
   }

@@ -27,6 +27,178 @@ export default class Database {
     }
   }
 
+  async addorUpdateUserDetails(
+    uphold_id: string,
+    access_token: string,
+    access_expiry: string,
+    refresh_token: string
+  ) {
+    const client = await this.pool.connect();
+    try {
+      const result = await client.query(
+        `INSERT INTO uphold_connections (
+          uphold_id,
+          access_token,
+          access_expiry,
+          refresh_token
+        ) VALUES ($1, $2, $3, $4) ON CONFLICT (uphold_id) 
+        DO UPDATE SET
+          access_token = EXCLUDED.access_token,
+          access_expiry = EXCLUDED.access_expiry,
+          refresh_token = EXCLUDED.refresh_token
+        RETURNING *`,
+        [uphold_id, access_token, access_expiry, refresh_token]
+      );
+      // Return the generated id
+      return result.rows[0]?.id || null;
+    } catch (error) {
+      monitoring.error(`database: addUserDetails - ${JsonBig.stringify(error)}`);
+      return null;
+    } finally {
+      client.release();
+    }
+  }
+
+  // async addUserAvailableCurrency(
+  //   user_id: number,
+  //   currency_code: string,
+  //   currency_name: string
+  // ): Promise<boolean> {
+  //   const client = await this.pool.connect();
+  //   try {
+  //     await client.query(
+  //       `INSERT INTO user_available_currencies (
+  //         user_id,
+  //         currency_code,
+  //         currency_name
+  //       ) VALUES ($1, $2, $3)
+  //       ON CONFLICT (user_id, currency_code)
+  //       DO NOTHING`, // Or use UPDATE if you want to update name, etc.
+  //       [user_id, currency_code, currency_name]
+  //     );
+  //     return true;
+  //   } catch (error) {
+  //     monitoring.error(`database: addUserAvailableCurrency - ${JsonBig.stringify(error)}`);
+  //     return false;
+  //   } finally {
+  //     client.release();
+  //   }
+  // }
+
+  async addOrUpdateUserPayoutPreference(
+    user_id: string,
+    asset_code: string,
+    network: string
+  ): Promise<boolean> {
+    const client = await this.pool.connect();
+    try {
+      await client.query(
+        `INSERT INTO uphold_payout_preferences (user_id, asset_code, network)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (user_id)
+        DO UPDATE SET
+          asset_code = EXCLUDED.asset_code,
+          network = EXCLUDED.network`,
+        [user_id, asset_code, network]
+      );
+      return true;
+    } catch (error) {
+      monitoring.error(`database: addOrUpdateUserPayoutPreference - ${JsonBig.stringify(error)}`);
+      return false;
+    } finally {
+      client.release();
+    }
+  }
+
+  async getUserDetails(uphold_id: string) {
+    const client = await this.pool.connect();
+    try {
+      const res = await client.query(`SELECT * FROM uphold_connections WHERE uphold_id = $1`, [
+        uphold_id,
+      ]);
+
+      if (res.rows.length === 0) {
+        return null; // Indicates user not found. Caller handles logic based on null return.
+      }
+      return res.rows[0];
+    } catch (error) {
+      monitoring.error(`database: getUserDetails: ${error}`);
+      return null;
+    } finally {
+      client.release();
+    }
+  }
+
+  // async addUserAvailableCurrency(
+  //   user_id: number,
+  //   currency_code: string,
+  //   currency_name: string
+  // ): Promise<boolean> {
+  //   const client = await this.pool.connect();
+  //   try {
+  //     await client.query(
+  //       `INSERT INTO user_available_currencies (
+  //         user_id,
+  //         currency_code,
+  //         currency_name
+  //       ) VALUES ($1, $2, $3)
+  //       ON CONFLICT (user_id, currency_code)
+  //       DO NOTHING`, // Or use UPDATE if you want to update name, etc.
+  //       [user_id, currency_code, currency_name]
+  //     );
+  //     return true;
+  //   } catch (error) {
+  //     monitoring.error(`database: addUserAvailableCurrency - ${JsonBig.stringify(error)}`);
+  //     return false;
+  //   } finally {
+  //     client.release();
+  //   }
+  // }
+
+  async addOrUpdateUserPayoutPreference(
+    user_id: string,
+    asset_code: string,
+    network: string
+  ): Promise<boolean> {
+    const client = await this.pool.connect();
+    try {
+      await client.query(
+        `INSERT INTO uphold_payout_preferences (user_id, asset_code, network)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (user_id)
+        DO UPDATE SET
+          asset_code = EXCLUDED.asset_code,
+          network = EXCLUDED.network`,
+        [user_id, asset_code, network]
+      );
+      return true;
+    } catch (error) {
+      monitoring.error(`database: addOrUpdateUserPayoutPreference - ${JsonBig.stringify(error)}`);
+      return false;
+    } finally {
+      client.release();
+    }
+  }
+
+  async getUserDetails(uphold_id: string) {
+    const client = await this.pool.connect();
+    try {
+      const res = await client.query(`SELECT * FROM uphold_connections WHERE uphold_id = $1`, [
+        uphold_id,
+      ]);
+
+      if (res.rows.length === 0) {
+        return null; // Indicates user not found. Caller handles logic based on null return.
+      }
+      return res.rows[0];
+    } catch (error) {
+      monitoring.error(`database: getUserDetails: ${error}`);
+      return null;
+    } finally {
+      client.release();
+    }
+  }
+
   async getRewardBlockHash(
     reward_txn_id: string,
     checkForInsert?: boolean

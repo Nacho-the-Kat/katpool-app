@@ -6,15 +6,18 @@ import logger from '../monitoring/datadog';
 import Denque from 'denque';
 import { getDifficulty, getSocketLogData } from './utils';
 import Monitoring from '../monitoring';
-import { DEBUG, minerRegexes } from '../constants';
+import { databaseUrl, DEBUG, minerRegexes } from '../constants';
 import { type Request, type Response, type Event, StratumError } from './server/protocol';
 import type { SharesManager } from './sharesManager';
 import { Address } from '../../wasm/kaspa/kaspa';
 import config from '../../config/config.json';
 import type Templates from './templates';
 import { randomBytes } from 'crypto';
+import Database from '../pool/database';
 
 const DEFAULT_DIFF = config.stratum[0].difficulty || 2048;
+
+const db = new Database(databaseUrl || '');
 
 export class StratumHandler {
   private monitoring: Monitoring;
@@ -76,7 +79,7 @@ export class StratumHandler {
     return;
   }
 
-  authorize(socket: Socket<Miner>, request: Request) {
+  async authorize(socket: Socket<Miner>, request: Request) {
     let varDiffStatus = false;
     const [address, name] = request.params[0].split('.');
     let userDiff = this.difficulty; // Defaults to the ports default difficulty
@@ -95,8 +98,16 @@ export class StratumHandler {
       this.monitoring.log(`StratumHandler: Extracted user diff value: ${userDiff}`);
     }
 
-    if (!Address.validate(address))
-      throw Error(`Invalid address, parsed address: ${address}, request: ${request.params[0]}`);
+    if (!Address.validate(address)) {
+      // If address is invalid. It should be Uphold authenticated user. With valid uphold id registered with KatPool.
+      const user = await db.getUserDetails(address);
+      if (!user) {
+        // If identifier is not registered with KatPool throw error.
+        throw Error(
+          `Access denied: Uphold ID is not registered with KatPool. Parsed address: ${address}, request: ${request.params[0]}`
+        );
+      }
+    }
     if (!name) throw Error(`Worker name is not set. Request: ${request.params[0]}`);
 
     const worker: Worker = { address, name: name };

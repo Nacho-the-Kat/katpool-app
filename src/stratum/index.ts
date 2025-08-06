@@ -10,9 +10,12 @@ import { Mutex } from 'async-mutex';
 import JsonBig from 'json-bigint';
 import { Encoding, type Miner } from '../types/index.ts';
 import { StratumHandler } from './stratumHandler.ts';
+import Database from '../pool/database/index.ts';
 import { VariableDifficulty } from './variableDifficulty.ts';
 import { getSocketLogData } from './utils.ts';
 import logger from '../monitoring/datadog.ts';
+
+const db = new Database(process.env.DATABASE_URL || '');
 
 export default class Stratum {
   server: Server;
@@ -168,7 +171,7 @@ export default class Stratum {
           break;
         }
         case 'mining.authorize': {
-          this.stratumHandler.authorize(socket, request);
+          await this.stratumHandler.authorize(socket, request);
           break;
         }
         case 'mining.submit': {
